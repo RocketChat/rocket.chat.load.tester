@@ -109,6 +109,7 @@ const loginOrRegister = async (client, credentials) => {
 // }
 
 const doLoginBatch = async (current, total, step = 10) => {
+	let currentClient = 0;
 	while (current < total) {
 		const batch = [];
 		for (let i = 0; i < step; i++, current++) {
@@ -117,11 +118,11 @@ const doLoginBatch = async (current, total, step = 10) => {
 				username: `loadtest${ current }`,
 				password: `pass${ current }`
 			};
-			batch.push(loginOrRegister(clients[current], credentials))
+			batch.push(loginOrRegister(clients[currentClient++], credentials))
 		}
 		await Promise.all(batch)
 	}
-	console.log(total, 'logged in');
+	console.log(currentClient, 'logged in');
 }
 
 const doLogin = async (countInit, batchSize = 1) => {
