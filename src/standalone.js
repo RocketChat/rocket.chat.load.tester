@@ -2,6 +2,8 @@ import RocketChatClient from '@rocket.chat/sdk/clients/Rocketchat';
 import fetch from 'node-fetch';
 import { connected } from './lib/prom';
 
+import { sendMessage } from './lib/api';
+
 global.fetch = fetch;
 
 const clients = [];
@@ -24,7 +26,7 @@ async function main () {
 		password: 'pass0'
 	});
 
-	await client.sendMessage('HELLO', 'GENERAL');
+	await sendMessage(client, 'GENERAL', 'HELLO');
 
 
 };

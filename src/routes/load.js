@@ -4,6 +4,8 @@ import fetch from 'node-fetch';
 
 import * as prom from '../lib/prom';
 
+import { login, register, sendMessage } from '../lib/api';
+
 global.fetch = fetch;
 
 const router = koaRouter();
@@ -48,24 +50,6 @@ router.post('/disconnect', async (ctx/*, next*/) => {
 	}
 
 	ctx.body = { success: true };
-});
-
-const login = async (client, credentials) => {
-	await client.login(credentials);
-	// await client.connect();
-	// await client.socket.then(s => s.login(credentials))
-
-	// await Promise.all([
-	// 	client.subscribeNotifyAll(),
-	// 	client.subscribeLoggedNotify(),
-	// 	client.subscribeNotifyUser(),
-	// ]);
-};
-const register = (client, { username, password }) => client.post('users.register', {
-	username,
-	email: `${ username }@loadtest.com`,
-	pass: password,
-	name: username
 });
 
 const doLogin = async (countInit) => {
@@ -135,8 +119,11 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 
 let msgInterval;
 router.post('/message/send', async (ctx/*, next*/) => {
+	const { period = 'relative', time = 1 } = ctx.params;
+
 	const total = clients.length;
 	const msgPerSecond = 0.002857142857143;
+	const timeInterval = period === 'relative' ? (1 / msgPerSecond/ total) : time;
 
 	if (msgInterval) {
 		clearInterval(msgInterval);
@@ -149,11 +136,9 @@ router.post('/message/send', async (ctx/*, next*/) => {
 			chosenOne = Math.floor(Math.random() * total);
 		}
 
-		const end = prom.messages.startTimer();
-		await clients[chosenOne].sendMessage(`hello from ${ chosenOne }`, 'GENERAL');
-		end();
+		sendMessage(clients[chosenOne], 'GENERAL', `hello from ${ chosenOne }`);
 
-	}, 1 / msgPerSecond/ total * 1000);
+	}, timeInterval * 1000);
 
 	ctx.body = { success: true };
 });
