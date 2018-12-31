@@ -11,6 +11,14 @@ global.fetch = fetch;
 const router = koaRouter();
 router.prefix('/load');
 
+const logger = {
+  debug: (...args) => {},
+  info: (...args) => {},
+  warning: (...args) => {},
+  warn: (...args) => {},
+  error: (...args) => { console.error(args)},
+};
+
 const clients = [];
 
 router.post('/connect', async (ctx/*, next*/) => {
@@ -20,7 +28,7 @@ router.post('/connect', async (ctx/*, next*/) => {
 
 	for (let i = 0; i < howMany; i++) {
 		const client = new RocketChatClient({
-			logger: console,
+			logger,
 			host: process.env.HOST_URL || 'http://localhost:3000',
 			useSsl: true,
 		});
@@ -52,8 +60,75 @@ router.post('/disconnect', async (ctx/*, next*/) => {
 	ctx.body = { success: true };
 });
 
-const doLogin = async (countInit) => {
+const loginOrRegister = async (client, credentials) => {
+	try {
+		await login(client, credentials);
+	} catch (e) {
+		await register(client, credentials);
+
+		await login(client, credentials);
+	}
+}
+
+// const doLogin = async (countInit, batchSize = 1) => {
+// 	const total = clients.length;
+
+// 	const batch = [];
+
+// 	console.log('total ->', total);
+
+// 	let i = 0;
+// 	while (i < total) {
+// 		console.log('i ->', i);
+// 		if (i % batchSize === 0) {
+// 			console.log('fazend', batch.length, total);
+// 			await Promise.all(batch);
+// 			console.log('ok, limpa')
+// 			batch.length = 0;
+// 		}
+// 		if (clients[i].loggedInInternal) {
+// 			i++;
+// 			console.log('JA FOI????????????');
+// 			continue;
+// 		}
+
+// 		const userCount = countInit + i;
+
+// 		const credentials = {
+// 			username: `loadtest${ userCount }`,
+// 			password: `pass${ userCount }`
+// 		};
+
+// 		batch.push(loginOrRegister(clients[i], credentials));
+// 		i++;
+// 	}
+
+// 	console.log('restou', batch.length);
+
+// 	await Promise.all(batch);
+// }
+
+const doLoginBatch = async (current, total, step = 10) => {
+	while (current < total) {
+		const batch = [];
+		for (let i = 0; i < step; i++, current++) {
+			// const userCount = current;
+			const credentials = {
+				username: `loadtest${ current }`,
+				password: `pass${ current }`
+			};
+			batch.push(loginOrRegister(clients[current], credentials))
+		}
+		await Promise.all(batch)
+	}
+	console.log(total, 'logged in');
+}
+
+const doLogin = async (countInit, batchSize = 1) => {
 	const total = clients.length;
+	if (batchSize > 1) {
+		return await doLoginBatch(countInit, countInit + total, batchSize);
+	}
 
 	let i = 0;
 	while (i < total) {
@@ -61,31 +136,17 @@ const doLogin = async (countInit) => {
 			i++;
 			continue;
 		}
+
+		console.log('login', i);
+
 		const userCount = countInit + i;
-		console.log('i ->', i);
 
 		const credentials = {
 			username: `loadtest${ userCount }`,
 			password: `pass${ userCount }`
 		};
 
-		try {
-			const end = prom.login.startTimer();
-			await login(clients[i], credentials);
-			end();
-
-			clients[i].loggedInInternal = true;
-		} catch (e) {
-			const registerEnd = prom.register.startTimer();
-			await register(clients[i], credentials);
-			registerEnd();
-
-			const end = prom.login.startTimer();
-			await login(clients[i], credentials);
-			end();
-
-			clients[i].loggedInInternal = true;
-		}
+		await loginOrRegister(clients[i], credentials);
 		i++;
 	}
 }
@@ -93,7 +154,8 @@ const doLogin = async (countInit) => {
 router.post('/login', async (ctx/*, next*/) => {
 	const countInit = parseInt(process.env.LOGIN_OFFSET) || 0;
 
-	doLogin(countInit);
+	const { batchSize = 10 } = ctx.params;
+	doLogin(countInit, batchSize);
 
 	ctx.body = { success: true };
 });
@@ -101,7 +163,6 @@ router.post('/login', async (ctx/*, next*/) => {
 router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 	const total = clients.length;
 
-	// console.log('ctx.params', ctx.params);
 	const { rid } = ctx.params;
 
 	let i = 0;
@@ -110,7 +171,7 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 			i++;
 			continue;
 		}
-		clients[i].subscribeRoom(rid);
+		await clients[i].subscribeRoom(rid);
 		i++;
 	}
 
@@ -123,7 +184,7 @@ router.post('/message/send', async (ctx/*, next*/) => {
 
 	const total = clients.length;
 	const msgPerSecond = 0.002857142857143;
-	const timeInterval = period === 'relative' ? (1 / msgPerSecond/ total) : time;
+	const timeInterval = period !== 'custom' ? (1 / msgPerSecond/ total) : time;
 
 	if (msgInterval) {
 		clearInterval(msgInterval);

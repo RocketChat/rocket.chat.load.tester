@@ -1,24 +1,37 @@
 import * as prom from './prom';
 
 export async function login(client, credentials) {
+	const end = prom.login.startTimer();
+
 	await client.login(credentials);
 	// await client.connect();
 	// await client.socket.then(s => s.login(credentials))
 
-	await Promise.all([
-		client.subscribeNotifyAll(),
-		client.subscribeLoggedNotify(),
-		client.subscribeNotifyUser(),
-	]);
+	// do one by one as doing three at same time was hanging
+	await client.subscribeNotifyAll();
+	await client.subscribeLoggedNotify();
+	await client.subscribeNotifyUser();
+
+	// await Promise.all([
+	// 	client.subscribeNotifyAll(),
+	// 	client.subscribeLoggedNotify(),
+	// 	client.subscribeNotifyUser(),
+	// ]);
+
+	client.loggedInInternal = true;
+
+	end();
 };
 
-export function register (client, { username, password }) {
-	return client.post('users.register', {
+export async function register(client, { username, password }) {
+	const end = prom.register.startTimer();
+	await client.post('users.register', {
 		username,
 		email: `${ username }@loadtest.com`,
 		pass: password,
 		name: username
 	});
+	end();
 }
 
 export async function typing(client, rid, typing) {
