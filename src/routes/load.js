@@ -64,9 +64,13 @@ const loginOrRegister = async (client, credentials) => {
 	try {
 		await login(client, credentials);
 	} catch (e) {
-		await register(client, credentials);
+		try {
+			await register(client, credentials);
 
-		await login(client, credentials);
+			await login(client, credentials);
+		} catch (e) {
+			console.error('could not login/register for', credentials);
+		}
 	}
 }
 
@@ -181,9 +185,13 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 
 let msgInterval;
 router.post('/message/send', async (ctx/*, next*/) => {
-	const { period = 'relative', time = 1 } = ctx.params;
+	const {
+		period = 'relative',
+		time = 1,
+		totalClients
+	} = ctx.params;
 
-	const total = clients.length;
+	const total = totalClients || clients.length;
 	const msgPerSecond = 0.002857142857143;
 	const timeInterval = period !== 'custom' ? (1 / msgPerSecond/ total) : time;
 
@@ -191,16 +199,20 @@ router.post('/message/send', async (ctx/*, next*/) => {
 		clearInterval(msgInterval);
 	}
 
-	msgInterval = setInterval(async () => {
+	const send = async () => {
 		let chosenOne = Math.floor(Math.random() * total);
 
 		while (!clients[chosenOne].loggedInInternal) {
 			chosenOne = Math.floor(Math.random() * total);
 		}
 
-		sendMessage(clients[chosenOne], 'GENERAL', `hello from ${ chosenOne }`);
-
-	}, timeInterval * 1000);
+		try {
+			sendMessage(clients[chosenOne], 'GENERAL', `hello from ${ chosenOne }`);
+		} catch (e) {
+			console.error('error sending message', e);
+		}
+	};
+	msgInterval = setInterval(send, timeInterval * 1000);
 
 	ctx.body = { success: true };
 });
