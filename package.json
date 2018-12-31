@@ -14,9 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "@rocket.chat/sdk": "^1.0.0-alpha.15",
-    "axios": "^0.18.0",
     "debug": "^3.2.6",
-    "eslint": "^4.8.0",
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
     "koa-convert": "^1.2.0",
@@ -29,6 +27,7 @@
   },
   "devDependencies": {
     "@rocket.chat/eslint-config": "^0.1.2",
+    "eslint": "^4.8.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-env": "^1.6.0",
