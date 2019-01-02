@@ -163,9 +163,13 @@ const doLogin = async (countInit, batchSize = 1) => {
 }
 
 router.post('/login', async (ctx/*, next*/) => {
-	const countInit = parseInt(process.env.LOGIN_OFFSET) || 0;
+	const {
+		offset = 0,
+		batchSize = 10,
+	} = ctx.request.body;
 
-	const { batchSize = 10 } = ctx.params;
+	const countInit = parseInt(offset) || 0;
+
 	doLogin(countInit, batchSize);
 
 	ctx.body = { success: true };
@@ -182,7 +186,7 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 			i++;
 			continue;
 		}
-		await subscribeRoom(clients[i], rid);
+		subscribeRoom(clients[i], rid);
 		i++;
 	}
 
@@ -193,10 +197,13 @@ let msgInterval;
 router.post('/message/send/:rid', async (ctx/*, next*/) => {
 	const {
 		rid,
+	} = ctx.params;
+
+	const {
 		period = 'relative',
 		time = 1,
 		totalClients
-	} = ctx.params;
+	} = ctx.request.body;
 
 	const total = totalClients || clients.length;
 	const msgPerSecond = 0.002857142857143;
