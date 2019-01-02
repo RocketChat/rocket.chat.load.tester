@@ -190,8 +190,9 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 });
 
 let msgInterval;
-router.post('/message/send', async (ctx/*, next*/) => {
+router.post('/message/send/:rid', async (ctx/*, next*/) => {
 	const {
+		rid,
 		period = 'relative',
 		time = 1,
 		totalClients
@@ -213,7 +214,7 @@ router.post('/message/send', async (ctx/*, next*/) => {
 		}
 
 		try {
-			sendMessage(clients[chosenOne], 'GENERAL', `hello from ${ chosenOne }`);
+			sendMessage(clients[chosenOne], rid, `hello from ${ chosenOne }`);
 		} catch (e) {
 			console.error('error sending message', e);
 		}
@@ -238,7 +239,7 @@ router.post('/join/:rid', async (ctx/*, next*/) => {
 			i++;
 			continue;
 		}
-		await joinRoom(clients[i], rid);
+		joinRoom(clients[i], rid);
 		i++;
 	}
 
