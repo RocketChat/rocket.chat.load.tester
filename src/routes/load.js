@@ -4,7 +4,13 @@ import fetch from 'node-fetch';
 
 import * as prom from '../lib/prom';
 
-import { login, register, sendMessage } from '../lib/api';
+import {
+	login,
+	register,
+	sendMessage ,
+	subscribeRoom,
+	joinRoom,
+} from '../lib/api';
 
 global.fetch = fetch;
 
@@ -176,7 +182,7 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 			i++;
 			continue;
 		}
-		await clients[i].subscribeRoom(rid);
+		await subscribeRoom(clients[i], rid);
 		i++;
 	}
 
@@ -219,6 +225,24 @@ router.post('/message/send', async (ctx/*, next*/) => {
 
 router.delete('/message/send', async (ctx/*, next*/) => {
 	clearInterval(msgInterval);
+});
+
+router.post('/join/:rid', async (ctx/*, next*/) => {
+	const total = clients.length;
+
+	const { rid } = ctx.params;
+
+	let i = 0;
+	while (i < total) {
+		if (!clients[i].loggedInInternal) {
+			i++;
+			continue;
+		}
+		await joinRoom(clients[i], rid);
+		i++;
+	}
+
+	ctx.body = { success: true };
 });
 
 export default router;

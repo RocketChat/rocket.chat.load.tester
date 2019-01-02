@@ -47,3 +47,15 @@ export async function sendMessage(client, rid, msg) {
 
 	await typing(client, rid, false);
 }
+
+export async function subscribeRoom(client, rid) {
+	const end = prom.roomSubscribe.startTimer();
+	await client.subscribeRoom(rid);
+	end();
+}
+
+export async function joinRoom(client, rid) {
+	const end = prom.roomJoin.startTimer();
+	await client.joinRoom({ rid });
+	end();
+}
