@@ -21,9 +21,13 @@ router.post('/connect', async (ctx/*, next*/) => {
 		howMany = 1
 	} = ctx.request.body;
 
+	const go = [];
+
 	for (let i = 0; i < howMany; i++) {
-		clients.push(connect());
+		go.push(connect());
 	}
+
+	clients.push(...await Promise.all(go));
 
 	ctx.body = { success: true };
 });
@@ -51,6 +55,7 @@ const loginOrRegister = async (client, credentials) => {
 	try {
 		await login(client, credentials);
 	} catch (e) {
+		console.log('error', e);
 		try {
 			await register(client, credentials);
 
