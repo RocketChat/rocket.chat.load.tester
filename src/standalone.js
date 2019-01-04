@@ -1,33 +1,29 @@
-import RocketChatClient from '@rocket.chat/sdk/clients/Rocketchat';
-import fetch from 'node-fetch';
-import { connected } from './lib/prom';
+import {
+	login,
+	register,
+	sendMessage ,
+	openRoom,
+	joinRoom,
+	connect
+} from './lib/api';
 
-import { sendMessage } from './lib/api';
-
-global.fetch = fetch;
-
-const clients = [];
+// const clients = [];
 
 async function main () {
 
-	const client = new RocketChatClient({
-		logger: console,
-		host: 'https://bench.rocket.chat',
-		useSsl: true
-	});
+	try {
+		const client = await connect();
 
-	// await client.connect();
-	connected.inc();
+		await login(client, {
+			username: 'loadtest0',
+			password: 'pass0'
+		});
 
-	// clients.push(client);
+		await openRoom(client, 'GENERAL');
 
-	await client.login({
-		username: 'loadtest0',
-		password: 'pass0'
-	});
-
-	await sendMessage(client, 'GENERAL', 'HELLO');
-
-
+		await sendMessage(client, 'GENERAL', 'HELLO');
+	} catch (e) {
+		console.error('meh', e);
+	}
 };
 main();

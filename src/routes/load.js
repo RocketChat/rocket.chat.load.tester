@@ -1,6 +1,4 @@
 import koaRouter from 'koa-router';
-import RocketChatClient from '@rocket.chat/sdk/clients/Rocketchat';
-import fetch from 'node-fetch';
 
 import * as prom from '../lib/prom';
 
@@ -8,22 +6,13 @@ import {
 	login,
 	register,
 	sendMessage ,
-	subscribeRoom,
+	openRoom,
 	joinRoom,
+	connect
 } from '../lib/api';
-
-global.fetch = fetch;
 
 const router = koaRouter();
 router.prefix('/load');
-
-const logger = {
-  debug: (...args) => {},
-  info: (...args) => {},
-  warning: (...args) => {},
-  warn: (...args) => {},
-  error: (...args) => { console.error(args)},
-};
 
 const clients = [];
 
@@ -33,15 +22,7 @@ router.post('/connect', async (ctx/*, next*/) => {
 	} = ctx.request.body;
 
 	for (let i = 0; i < howMany; i++) {
-		const client = new RocketChatClient({
-			logger,
-			host: process.env.HOST_URL || 'http://localhost:3000',
-			useSsl: true,
-		});
-
-		prom.connected.inc();
-
-		clients.push(client);
+		clients.push(connect());
 	}
 
 	ctx.body = { success: true };
@@ -175,7 +156,7 @@ router.post('/login', async (ctx/*, next*/) => {
 	ctx.body = { success: true };
 });
 
-router.post('/subscribe/:rid', async (ctx/*, next*/) => {
+router.post('/open-room/:rid', async (ctx/*, next*/) => {
 	const total = clients.length;
 
 	const { rid } = ctx.params;
@@ -186,7 +167,7 @@ router.post('/subscribe/:rid', async (ctx/*, next*/) => {
 			i++;
 			continue;
 		}
-		subscribeRoom(clients[i], rid);
+		openRoom(clients[i], rid);
 		i++;
 	}
 

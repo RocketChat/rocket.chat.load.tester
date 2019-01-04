@@ -13,7 +13,7 @@
   "author": "Diego Sampaio <chinello@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@rocket.chat/sdk": "^1.0.0-alpha.15",
+    "@rocket.chat/sdk": "^1.0.0-alpha.17",
     "debug": "^3.2.6",
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
