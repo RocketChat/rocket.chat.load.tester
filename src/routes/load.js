@@ -27,7 +27,7 @@ router.post('/connect', async (ctx/*, next*/) => {
 		go.push(connect());
 	}
 
-	clients.push(...await Promise.all(go));
+	Promise.all(go).then(c => clients.push(...c));
 
 	ctx.body = { success: true };
 });
