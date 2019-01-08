@@ -93,4 +93,6 @@ function onListening () {
 }
 
 // runs standalone
-// require('./standalone');
+if (!process.env.DISABLE_STANDALONE) {
+	require('./standalone');
+}

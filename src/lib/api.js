@@ -5,6 +5,8 @@ import * as prom from './prom';
 
 global.fetch = fetch;
 
+export const clients = [];
+
 const logger = false || {
 	debug: (...args) => {},
 	info: (...args) => {},
@@ -114,4 +116,90 @@ export async function openRoom(client, rid) {
 	]);
 
 	await socket.ddp.call('readMessages', rid);
+}
+
+
+export const loginOrRegister = async (client, credentials) => {
+	try {
+		await login(client, credentials);
+	} catch (e) {
+		console.log('error', e);
+		try {
+			await register(client, credentials);
+
+			await login(client, credentials);
+		} catch (e) {
+			console.error('could not login/register for', credentials);
+		}
+	}
+}
+
+export const doLoginBatch = async (current, total, step = 10) => {
+	let currentClient = 0;
+	while (current < total) {
+		const batch = [];
+		for (let i = 0; i < step; i++, current++) {
+			// const userCount = current;
+			const credentials = {
+				username: `loadtest${ current }`,
+				password: `pass${ current }`
+			};
+			batch.push(loginOrRegister(clients[currentClient++], credentials))
+		}
+		await Promise.all(batch)
+	}
+	console.log(currentClient, 'logged in');
+}
+
+export const doLogin = async (countInit, batchSize = 1) => {
+	const total = clients.length;
+	if (batchSize > 1) {
+		return await doLoginBatch(countInit, countInit + total, batchSize);
+	}
+
+	let i = 0;
+	while (i < total) {
+		if (clients[i].loggedInInternal) {
+			i++;
+			continue;
+		}
+
+		// console.log('login', i);
+
+		const userCount = countInit + i;
+
+		const credentials = {
+			username: `loadtest${ userCount }`,
+			password: `pass${ userCount }`
+		};
+
+		await loginOrRegister(clients[i], credentials);
+		i++;
+	}
+}
+
+export let msgInterval;
+export function sendRandomMessage({ rid, totalClients, period, time }) {
+	const total = totalClients || clients.length;
+	const msgPerSecond = 0.002857142857143;
+	const timeInterval = period !== 'custom' ? (1 / msgPerSecond/ total) : time;
+
+	if (msgInterval) {
+		clearInterval(msgInterval);
+	}
+
+	const send = async () => {
+		let chosenOne = Math.floor(Math.random() * total);
+
+		while (!clients[chosenOne].loggedInInternal) {
+			chosenOne = Math.floor(Math.random() * total);
+		}
+
+		try {
+			sendMessage(clients[chosenOne], rid, `hello from ${ chosenOne }`);
+		} catch (e) {
+			console.error('error sending message', e);
+		}
+	};
+	msgInterval = setInterval(send, timeInterval * 1000);
 }
