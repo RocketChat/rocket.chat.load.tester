@@ -16,9 +16,7 @@ const {
 } = process.env;
 
 async function main () {
-
 	try {
-
 		console.log('connecting clients:', HOW_MANY);
 		const go = [];
 		for (let i = 0; i < parseInt(HOW_MANY); i++) {
@@ -29,6 +27,20 @@ async function main () {
 		console.log('logging in clients:', HOW_MANY);
 
 		await doLogin(parseInt(LOGIN_OFFSET), Math.min(parseInt(HOW_MANY), parseInt(LOGIN_BATCH)));
+
+		if (JOIN_ROOM) {
+			console.log('joining room:', JOIN_ROOM);
+
+			let i = 0;
+			while (i < parseInt(HOW_MANY)) {
+				if (!clients[i].loggedInInternal) {
+					i++;
+					continue;
+				}
+				await joinRoom(clients[i], JOIN_ROOM);
+				i++;
+			}
+		}
 
 		console.log('opening room:', ROOM_ID);
 
