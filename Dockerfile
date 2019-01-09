@@ -1,23 +1,26 @@
+FROM node:8 as builder
+
+ADD . /app
+
+WORKDIR /app
+
+RUN npm install \
+ && npm run build \
+ && cp package.json /app/build/
+
+ENV NODE_ENV=production
+
+RUN cd /app/build && npm install
+
 FROM node:8-alpine
 
-RUN apk --no-cache --virtual build-dependencies add \
-    python \
-    make \
-    g++ \
-    git
-
-ADD ./build /app
-ADD package.json /app
+COPY --from=builder /app/build/ /app
 
 WORKDIR /app
 
 ENV PORT=3000 \
-    NODE_ENV=production
-
-RUN set -x \
- && npm install \
- && npm cache clear --force \
- && apk del build-dependencies
+    NODE_ENV=production \
+    DEBUG=app:server
 
 EXPOSE 3000
 
