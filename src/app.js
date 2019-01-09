@@ -3,7 +3,7 @@ const app = new Koa();
 import json from 'koa-json';
 import onerror from 'koa-onerror';
 import bodyparser from 'koa-bodyparser';
-import logger from 'koa-pino-logger';
+// import logger from 'koa-pino-logger';
 
 import metrics from './routes/metrics';
 import load from './routes/load';
@@ -24,7 +24,7 @@ app.use(bodyparser({
 	enableTypes:['json', 'form', 'text']
 }));
 app.use(json());
-app.use(logger());
+// app.use(logger());
 
 // logger
 app.use(async (ctx, next) => {
