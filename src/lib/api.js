@@ -88,7 +88,12 @@ export async function sendMessage(client, rid, msg) {
 	await typing(client, rid, true);
 
 	const end = prom.messages.startTimer();
-	await client.sendMessage(msg, rid);
+	try {
+		await client.sendMessage(msg, rid);
+	} catch (e) {
+		console.error('error sending message', e);
+		prom.messagesError.inc();
+	}
 	end();
 
 	await typing(client, rid, false);
