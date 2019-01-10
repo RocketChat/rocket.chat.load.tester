@@ -45,39 +45,55 @@ export async function connect() {
 
 export async function login(client, credentials) {
 	const end = prom.login.startTimer();
+	try {
+		await client.login(credentials);
 
-	await client.login(credentials);
+		// do one by one as doing three at same time was hanging
+		await client.subscribeLoggedNotify();
+		await client.subscribeNotifyUser();
+		await client.subscribeUserData();
 
-	// do one by one as doing three at same time was hanging
-	await client.subscribeLoggedNotify();
-	await client.subscribeNotifyUser();
-	await client.subscribeUserData();
+		// await Promise.all([
+		// 	'roles',
+		// 	'webdavAccounts',
+		// 	'userData',
+		// 	// 'activeUsers'
+		// ].map(stream => client.subscribe(stream, '')));
 
-	const socket = await client.socket;
+		const socket = await client.socket;
 
-	await Promise.all([
-		'listCustomSounds',
-		'listEmojiCustom',
-		'getUserRoles',
-		'subscriptions/get',
-		'rooms/get',
-		'apps/is-enabled'
-	].map(name => socket.ddp.call(name)));
+		await Promise.all([
+			'listCustomSounds',
+			'listEmojiCustom',
+			'getUserRoles',
+			'subscriptions/get',
+			'rooms/get',
+			'apps/is-enabled'
+		].map(name => socket.ddp.call(name)));
 
-	client.loggedInInternal = true;
+		client.loggedInInternal = true;
 
-	end();
+		end({ status: 'success' });
+	} catch (e) {
+		console.error('error joining room', e);
+		end({ status: 'error' });
+	}
 };
 
 export async function register(client, { username, password }) {
 	const end = prom.register.startTimer();
-	await client.post('users.register', {
-		username,
-		email: `${ username }@loadtest.com`,
-		pass: password,
-		name: username
-	});
-	end();
+	try {
+		await client.post('users.register', {
+			username,
+			email: `${ username }@loadtest.com`,
+			pass: password,
+			name: username
+		});
+		end({ status: 'success' });
+	} catch (e) {
+		console.error('error register', e);
+		end({ status: 'error' });
+	}
 }
 
 export async function typing(client, rid, typing) {
@@ -90,37 +106,53 @@ export async function sendMessage(client, rid, msg) {
 	const end = prom.messages.startTimer();
 	try {
 		await client.sendMessage(msg, rid);
+		end({ status: 'success' });
 	} catch (e) {
 		console.error('error sending message', e);
-		prom.messagesError.inc();
+		end({ status: 'error' });
 	}
-	end();
 
 	await typing(client, rid, false);
 }
 
 export async function subscribeRoom(client, rid) {
 	const end = prom.roomSubscribe.startTimer();
-	await client.subscribeRoom(rid);
-	end();
+	try {
+		await client.subscribeRoom(rid);
+		end({ status: 'success' });
+	} catch (e) {
+		console.error('error subscribing room', e);
+		end({ status: 'error' });
+	}
 }
 
 export async function joinRoom(client, rid) {
 	const end = prom.roomJoin.startTimer();
-	await client.joinRoom({ rid });
-	end();
+	try {
+		await client.joinRoom({ rid });
+		end({ status: 'success' });
+	} catch (e) {
+		console.error('error joining room', e);
+		end({ status: 'error' });
+	}
 }
 
 export async function openRoom(client, rid) {
-	const socket = await client.socket;
+	const end = prom.openRoom.startTimer();
+	try {
+		const socket = await client.socket;
 
-	await Promise.all([
-		subscribeRoom(client, rid),
-		socket.ddp.call('getRoomRoles', rid),
-		socket.ddp.call('loadHistory', rid, null, 50, new Date())
-	]);
+		await Promise.all([
+			subscribeRoom(client, rid),
+			socket.ddp.call('getRoomRoles', rid),
+			socket.ddp.call('loadHistory', rid, null, 50, new Date())
+		]);
 
-	await socket.ddp.call('readMessages', rid);
+		await socket.ddp.call('readMessages', rid);
+	} catch (e) {
+		console.error('error open room', e);
+		end({ status: 'error' });
+	}
 }
 
 
