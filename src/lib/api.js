@@ -51,14 +51,17 @@ export async function login(client, credentials) {
 		// do one by one as doing three at same time was hanging
 		await client.subscribeLoggedNotify();
 		await client.subscribeNotifyUser();
-		await client.subscribeUserData();
 
-		// await Promise.all([
-		// 	'roles',
-		// 	'webdavAccounts',
-		// 	'userData',
-		// 	// 'activeUsers'
-		// ].map(stream => client.subscribe(stream, '')));
+		if (!process.env.NO_SUBSCRIBE) {
+			await client.subscribeUserData();
+		} else if (process.env.NO_SUBSCRIBE === 'no-active') {
+			await Promise.all([
+				'roles',
+				'webdavAccounts',
+				'userData',
+				// 'activeUsers'
+			].map(stream => client.subscribe(stream, '')));
+		}
 
 		const socket = await client.socket;
 
