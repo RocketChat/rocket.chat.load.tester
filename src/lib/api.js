@@ -149,12 +149,12 @@ export async function openRoom(client, rid) {
 		]);
 
 		await socket.ddp.call('readMessages', rid);
+		end({ status: 'success' });
 	} catch (e) {
 		console.error('error open room', e);
 		end({ status: 'error' });
 	}
 }
-
 
 export const loginOrRegister = async (client, credentials) => {
 	try {
