@@ -77,6 +77,7 @@ export async function login(client, credentials) {
 	} catch (e) {
 		console.error('error joining room', e);
 		end({ status: 'error' });
+		throw e;
 	}
 };
 
