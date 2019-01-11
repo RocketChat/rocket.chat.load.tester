@@ -216,6 +216,10 @@ export const doLogin = async (countInit, batchSize = 1) => {
 	}
 }
 
+let msgCounter = 0;
+const atAllInterval = 1000;
+const atHereInterval = 400;
+
 export let msgInterval;
 export function sendRandomMessage({ rid, totalClients, period, time }) {
 	const total = totalClients || clients.length;
@@ -233,8 +237,17 @@ export function sendRandomMessage({ rid, totalClients, period, time }) {
 			chosenOne = Math.floor(Math.random() * total);
 		}
 
+		msgCounter++;
+
+		let mention = '';
+		if (msgCounter % atAllInterval === 0) {
+			mention = '@all ';
+		} else if (msgCounter % atHereInterval === 0) {
+			mention = '@here ';
+		}
+
 		try {
-			sendMessage(clients[chosenOne], rid, `hello from ${ chosenOne }`);
+			sendMessage(clients[chosenOne], rid, `${ mention }hello from ${ chosenOne }`);
 		} catch (e) {
 			console.error('error sending message', e);
 		}
