@@ -63,16 +63,37 @@ export async function login(client, credentials) {
 			].map(stream => client.subscribe(stream, '')));
 		}
 
+		await Promise.all([
+			['stream-importers', 'progress', {"useCollection":false,"args":[]}],
+			['stream-notify-all', 'deleteCustomSound', {"useCollection":false,"args":[]}],
+			['stream-notify-all', 'updateCustomSound', {"useCollection":false,"args":[]}],
+			['stream-notify-all', 'public-settings-changed', {"useCollection":false,"args":[]}],
+			['stream-notify-logged', 'user-status', {"useCollection":false,"args":[]}],
+			['stream-notify-logged', 'permissions-changed', {"useCollection":false,"args":[]}],
+
+			['stream-apps', 'app/added', {"useCollection":false,"args":[]}],
+			['stream-apps', 'app/removed', {"useCollection":false,"args":[]}],
+			['stream-apps', 'app/updated', {"useCollection":false,"args":[]}],
+			['stream-apps', 'app/statusUpdate', {"useCollection":false,"args":[]}],
+			['stream-apps', 'app/settingUpdated', {"useCollection":false,"args":[]}],
+			['stream-apps', 'command/added', {"useCollection":false,"args":[]}],
+			['stream-apps', 'command/disabled', {"useCollection":false,"args":[]}],
+			['stream-apps', 'command/updated', {"useCollection":false,"args":[]}],
+			['stream-apps', 'command/removed', {"useCollection":false,"args":[]}],
+		].map(([stream, ...params]) => client.subscribe(stream, ...params)));
+
 		const socket = await client.socket;
 
 		await Promise.all([
-			'listCustomSounds',
-			'listEmojiCustom',
-			'getUserRoles',
-			'subscriptions/get',
-			'rooms/get',
-			'apps/is-enabled'
-		].map(name => socket.ddp.call(name)));
+			['listCustomSounds'],
+			['listEmojiCustom'],
+			['getUserRoles'],
+			['subscriptions/get'],
+			['rooms/get'],
+			['apps/is-enabled'],
+			['loadLocale', 'pt-BR'],
+			['autoTranslate.getSupportedLanguages', 'en'],
+		].map((params) => socket.ddp.call(...params)));
 
 		client.loggedInInternal = true;
 
@@ -170,7 +191,7 @@ export const loginOrRegister = async (client, credentials) => {
 
 			await login(client, credentials);
 		} catch (e) {
-			console.error('could not login/register for', credentials);
+			console.error('could not login/register for', credentials, e);
 		}
 	}
 }
