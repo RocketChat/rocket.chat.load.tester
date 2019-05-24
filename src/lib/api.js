@@ -92,7 +92,7 @@ export async function login(client, credentials) {
 			['rooms/get'],
 			['apps/is-enabled'],
 			['loadLocale', 'pt-BR'],
-			['autoTranslate.getSupportedLanguages', 'en'],
+			// ['autoTranslate.getSupportedLanguages', 'en'],
 		].map((params) => socket.ddp.call(...params)));
 
 		client.loggedInInternal = true;
