@@ -12,7 +12,8 @@ const {
 	LOGIN_BATCH = 10,
 	LOGIN_OFFSET = 0,
 	ROOM_ID = 'GENERAL',
-	JOIN_ROOM
+	JOIN_ROOM,
+	SEND_MESSAGES = 'yes',
 } = process.env;
 
 async function main () {
@@ -55,8 +56,10 @@ async function main () {
 		i++;
 	}
 
-	console.log('sending messages to:', ROOM_ID);
+	if (['yes', 'true'].includes(SEND_MESSAGES)) {
+		console.log('sending messages to:', ROOM_ID);
 
-	sendRandomMessage({ rid: ROOM_ID });
+		sendRandomMessage({ rid: ROOM_ID });
+	}
 };
 main();
