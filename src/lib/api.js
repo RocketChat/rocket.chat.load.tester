@@ -19,7 +19,7 @@ export async function connect() {
 	const client = new RocketChatClient({
 		logger,
 		host: process.env.HOST_URL || 'http://localhost:3000',
-		useSsl: process.env.SSL_ENABLED || true,
+		useSsl: process.env.SSL_ENABLED || false,
 	});
 	await client.connect();
 
