@@ -1,4 +1,4 @@
-FROM node:8 as builder
+FROM node:10 as builder
 
 ADD . /app
 
@@ -12,7 +12,7 @@ ENV NODE_ENV=production
 
 RUN cd /app/build && npm install
 
-FROM node:8-alpine
+FROM node:10-alpine
 
 COPY --from=builder /app/build/ /app
 
