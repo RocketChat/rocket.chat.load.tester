@@ -8,10 +8,14 @@ import {
 	setDefaultCredentials,
 } from './lib/api';
 
+import {
+	initOffset,
+	getLoginOffset,
+} from './lib/utils';
+
 const {
 	HOW_MANY = 1,
 	LOGIN_BATCH = 10,
-	LOGIN_OFFSET = 0,
 	OPEN_ROOM = 'true',
 	ROOM_ID = 'GENERAL',
 	JOIN_ROOM,
@@ -29,7 +33,10 @@ setDefaultCredentials({
 });
 
 async function main () {
+	await initOffset();
+
 	console.log('connecting clients:', HOW_MANY);
+
 	const go = [];
 	for (let i = 0; i < parseInt(HOW_MANY); i++) {
 		go.push(connect(CLIENT_TYPE));
@@ -38,7 +45,7 @@ async function main () {
 
 	console.log('logging in clients:', HOW_MANY);
 
-	await doLogin(parseInt(LOGIN_OFFSET), Math.min(parseInt(HOW_MANY), parseInt(LOGIN_BATCH)), CLIENT_TYPE);
+	await doLogin(await getLoginOffset(parseInt(HOW_MANY)), Math.min(parseInt(HOW_MANY), parseInt(LOGIN_BATCH)), CLIENT_TYPE);
 
 	if (JOIN_ROOM) {
 		console.log('joining room:', JOIN_ROOM);
