@@ -8,14 +8,14 @@ global.fetch = fetch;
 export const clients = [];
 
 const logger = false || {
-	debug: (...args) => {},
-	info: (...args) => {},
-	warning: (...args) => {},
-	warn: (...args) => {},
+	debug: (...args) => true || console.log(args),
+	info: (...args) => true || console.log(args),
+	warning: (...args) => true || console.log(args),
+	warn: (...args) => true || console.log(args),
 	error: (...args) => { console.error(args)},
 };
 
-export async function connect() {
+export async function connect(type) {
 	const client = new RocketChatClient({
 		logger,
 		host: process.env.HOST_URL || 'http://localhost:3000',
@@ -28,14 +28,21 @@ export async function connect() {
 	const socket = await client.socket;
 
 	await new Promise(async (resolve) => {
-		await socket.ddp.call('public-settings/get');
-		await socket.ddp.call('permissions/get');
+		if (type === 'web') {
+			await socket.ddp.call('public-settings/get');
+			await socket.ddp.call('permissions/get');
 
-		// this is done to simulate web client
-		await client.subscribe('meteor.loginServiceConfiguration');
-		await client.subscribe('meteor_autoupdate_clientVersions');
+			// this is done to simulate web client
+			await client.subscribe('meteor.loginServiceConfiguration');
+			await client.subscribe('meteor_autoupdate_clientVersions');
 
-		await client.subscribeNotifyAll();
+			// await client.subscribeNotifyAll();
+			await Promise.all([
+				'updateEmojiCustom',
+				'deleteEmojiCustom',
+				'public-settings-changed'
+			].map(event => client.subscribe('stream-notify-all', event, false)));
+		}
 
 		resolve();
 	});
@@ -43,57 +50,129 @@ export async function connect() {
 	return client;
 }
 
-export async function login(client, credentials) {
+const getLoginSubs = (type) => {
+	const subs = [];
+
+	if (type === 'web') {
+		subs.push(['stream-notify-all', 'deleteCustomSound', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-notify-all', 'updateCustomSound', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-notify-all', 'public-settings-changed', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-notify-logged', 'user-status', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-notify-logged', 'permissions-changed', {"useCollection":false,"args":[]}]);
+
+		subs.push(['stream-importers', 'progress', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'app/added', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'app/removed', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'app/updated', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'app/statusUpdate', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'app/settingUpdated', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'command/added', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'command/disabled', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'command/updated', {"useCollection":false,"args":[]}]);
+		subs.push(['stream-apps', 'command/removed', {"useCollection":false,"args":[]}]);
+	}
+
+	return subs;
+}
+
+const getLoginMethods = (type) => {
+	const methods = [];
+
+	if (type === 'web') {
+		methods.push(['listCustomSounds']);
+		methods.push(['listEmojiCustom']);
+		methods.push(['getUserRoles']);
+		methods.push(['subscriptions/get']);
+		methods.push(['rooms/get']);
+		methods.push(['apps/is-enabled']);
+		methods.push(['loadLocale', 'pt-BR']);
+		// methods.push(['autoTranslate.getSupportedLanguages', 'en']);
+	}
+
+	return methods;
+}
+
+const defaultCredentials = {
+	username: 'loadtest%s',
+	password: 'pass%s',
+	email: 'loadtest%s@loadtest.com',
+};
+export const setDefaultCredentials = ({ username, password, email }) => {
+	if (username) {
+		defaultCredentials.username = username;
+	}
+	if (password) {
+		defaultCredentials.password = password;
+	}
+	if (email) {
+		defaultCredentials.email = email;
+	}
+}
+
+const getCredentials = (current) => {
+	return {
+		username: defaultCredentials.username.replace(/\%s/, current),
+		password: defaultCredentials.password.replace(/\%s/, current),
+		email: defaultCredentials.email.replace(/\%s/, current),
+	};
+}
+
+export async function login(client, credentials, type) {
 	const end = prom.login.startTimer();
 	try {
-		await client.login(credentials);
+		const user = await client.login(credentials);
 
 		// do one by one as doing three at same time was hanging
-		await client.subscribeLoggedNotify();
-		await client.subscribeNotifyUser();
-
-		if (!process.env.NO_SUBSCRIBE) {
-			await client.subscribeUserData();
-		} else if (process.env.NO_SUBSCRIBE === 'no-active') {
+		if (type === 'web') {
+			// await client.subscribeLoggedNotify();
 			await Promise.all([
-				'roles',
-				'webdavAccounts',
+				'Users:NameChanged',
+				'Users:Deleted',
+				'updateAvatar',
+				'updateEmojiCustom',
+				'deleteEmojiCustom',
+				'roles-change',
+				'permissions-changed'
+			].map(event => client.subscribe('stream-notify-logged', event, false)));
+
+			// await client.subscribeNotifyUser();
+			await Promise.all([
+				'message',
+				'otr',
+				'webrtc',
+				'notification',
+				'audioNotification',
+				'rooms-changed',
+				'subscriptions-changed'
+			].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
+
+			if (!process.env.NO_SUBSCRIBE) {
+				await client.subscribeUserData();
+			} else if (process.env.NO_SUBSCRIBE === 'no-active') {
+				await Promise.all([
+					'roles',
+					'webdavAccounts',
+					'userData',
+					// 'activeUsers'
+				].map(stream => client.subscribe(stream, '')));
+			}
+		} else if (type === 'android' || type === 'ios') {
+			await Promise.all([
+				'rooms-changed',
+				'subscriptions-changed'
+			].map((stream) => client.subscribe('stream-notify-user', `${user.id}/${stream}`)));
+
+			await Promise.all([
 				'userData',
-				// 'activeUsers'
-			].map(stream => client.subscribe(stream, '')));
+				'activeUsers',
+			].map((stream) => client.subscribe(stream, '')));
 		}
 
-		await Promise.all([
-			['stream-importers', 'progress', {"useCollection":false,"args":[]}],
-			['stream-notify-all', 'deleteCustomSound', {"useCollection":false,"args":[]}],
-			['stream-notify-all', 'updateCustomSound', {"useCollection":false,"args":[]}],
-			['stream-notify-all', 'public-settings-changed', {"useCollection":false,"args":[]}],
-			['stream-notify-logged', 'user-status', {"useCollection":false,"args":[]}],
-			['stream-notify-logged', 'permissions-changed', {"useCollection":false,"args":[]}],
-
-			['stream-apps', 'app/added', {"useCollection":false,"args":[]}],
-			['stream-apps', 'app/removed', {"useCollection":false,"args":[]}],
-			['stream-apps', 'app/updated', {"useCollection":false,"args":[]}],
-			['stream-apps', 'app/statusUpdate', {"useCollection":false,"args":[]}],
-			['stream-apps', 'app/settingUpdated', {"useCollection":false,"args":[]}],
-			['stream-apps', 'command/added', {"useCollection":false,"args":[]}],
-			['stream-apps', 'command/disabled', {"useCollection":false,"args":[]}],
-			['stream-apps', 'command/updated', {"useCollection":false,"args":[]}],
-			['stream-apps', 'command/removed', {"useCollection":false,"args":[]}],
-		].map(([stream, ...params]) => client.subscribe(stream, ...params)));
+		await Promise.all(getLoginSubs(type).map(([stream, ...params]) => client.subscribe(stream, ...params)));
 
 		const socket = await client.socket;
 
-		await Promise.all([
-			['listCustomSounds'],
-			['listEmojiCustom'],
-			['getUserRoles'],
-			['subscriptions/get'],
-			['rooms/get'],
-			['apps/is-enabled'],
-			['loadLocale', 'pt-BR'],
-			// ['autoTranslate.getSupportedLanguages', 'en'],
-		].map((params) => socket.ddp.call(...params)));
+		await Promise.all(getLoginMethods(type).map((params) => socket.ddp.call(...params)));
 
 		client.loggedInInternal = true;
 
@@ -105,12 +184,12 @@ export async function login(client, credentials) {
 	}
 };
 
-export async function register(client, { username, password }) {
+export async function register(client, { username, email, password }) {
 	const end = prom.register.startTimer();
 	try {
 		await client.post('users.register', {
 			username,
-			email: `${ username }@loadtest.com`,
+			email,
 			pass: password,
 			name: username
 		});
@@ -162,18 +241,26 @@ export async function joinRoom(client, rid) {
 	}
 }
 
-export async function openRoom(client, rid) {
+export async function openRoom(client, rid, type) {
 	const end = prom.openRoom.startTimer();
 	try {
 		const socket = await client.socket;
 
-		await Promise.all([
+		const calls = [
 			subscribeRoom(client, rid),
-			socket.ddp.call('getRoomRoles', rid),
-			socket.ddp.call('loadHistory', rid, null, 50, new Date())
-		]);
+		];
 
-		await socket.ddp.call('readMessages', rid);
+		if (type === 'web') {
+			calls.push(socket.ddp.call('getRoomRoles', rid));
+			calls.push(socket.ddp.call('loadHistory', rid, null, 50, new Date()));
+		}
+
+		await Promise.all(calls);
+
+		if (type === 'web') {
+			await socket.ddp.call('readMessages', rid);
+		}
+
 		end({ status: 'success' });
 	} catch (e) {
 		console.error('error open room', e);
@@ -181,42 +268,39 @@ export async function openRoom(client, rid) {
 	}
 }
 
-export const loginOrRegister = async (client, credentials) => {
+export const loginOrRegister = async (client, credentials, type) => {
 	try {
-		await login(client, credentials);
+		await login(client, credentials, type);
 	} catch (e) {
 		console.log('error', e);
 		try {
-			await register(client, credentials);
+			await register(client, credentials, type);
 
-			await login(client, credentials);
+			await login(client, credentials, type);
 		} catch (e) {
 			console.error('could not login/register for', credentials, e);
 		}
 	}
 }
 
-export const doLoginBatch = async (current, total, step = 10) => {
+export const doLoginBatch = async (current, total, step = 10, type) => {
 	let currentClient = 0;
 	while (current < total) {
 		const batch = [];
 		for (let i = 0; i < step; i++, current++) {
 			// const userCount = current;
-			const credentials = {
-				username: `loadtest${ current }`,
-				password: `pass${ current }`
-			};
-			batch.push(loginOrRegister(clients[currentClient++], credentials))
+			const credentials = getCredentials(current);
+			batch.push(loginOrRegister(clients[currentClient++], credentials, type))
 		}
 		await Promise.all(batch)
 	}
 	console.log(currentClient, 'logged in');
 }
 
-export const doLogin = async (countInit, batchSize = 1) => {
+export const doLogin = async (countInit, batchSize = 1, type = 'web') => {
 	const total = clients.length;
 	if (batchSize > 1) {
-		return await doLoginBatch(countInit, countInit + total, batchSize);
+		return await doLoginBatch(countInit, countInit + total, batchSize, type);
 	}
 
 	let i = 0;
@@ -230,12 +314,9 @@ export const doLogin = async (countInit, batchSize = 1) => {
 
 		const userCount = countInit + i;
 
-		const credentials = {
-			username: `loadtest${ userCount }`,
-			password: `pass${ userCount }`
-		};
+		const credentials = getCredentials(userCount);
 
-		await loginOrRegister(clients[i], credentials);
+		await loginOrRegister(clients[i], credentials, type);
 		i++;
 	}
 }
