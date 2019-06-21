@@ -15,11 +15,20 @@ const logger = false || {
 	error: (...args) => { console.error(args)},
 };
 
+const {
+	TRY_REGISTER = 'yes',
+	HOST_URL,
+	SSL_ENABLED,
+	NO_SUBSCRIBE,
+} = process.env;
+
+const tryRegister = ['yes', 'true'].includes(TRY_REGISTER);
+
 export async function connect(type) {
 	const client = new RocketChatClient({
 		logger,
-		host: process.env.HOST_URL || 'http://localhost:3000',
-		useSsl: process.env.SSL_ENABLED || true,
+		host: HOST_URL || 'http://localhost:3000',
+		useSsl: SSL_ENABLED || true,
 	});
 	await client.connect();
 
@@ -146,9 +155,9 @@ export async function login(client, credentials, type) {
 				'subscriptions-changed'
 			].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
 
-			if (!process.env.NO_SUBSCRIBE) {
+			if (!NO_SUBSCRIBE) {
 				await client.subscribeUserData();
-			} else if (process.env.NO_SUBSCRIBE === 'no-active') {
+			} else if (NO_SUBSCRIBE === 'no-active') {
 				await Promise.all([
 					'roles',
 					'webdavAccounts',
@@ -178,7 +187,7 @@ export async function login(client, credentials, type) {
 
 		end({ status: 'success' });
 	} catch (e) {
-		console.error('error joining room', e);
+		console.error('error during login', e);
 		end({ status: 'error' });
 		throw e;
 	}
@@ -273,6 +282,9 @@ export const loginOrRegister = async (client, credentials, type) => {
 		await login(client, credentials, type);
 	} catch (e) {
 		console.log('error', e);
+		if (!tryRegister) {
+			return;
+		}
 		try {
 			await register(client, credentials, type);
 
@@ -285,6 +297,7 @@ export const loginOrRegister = async (client, credentials, type) => {
 
 export const doLoginBatch = async (current, total, step = 10, type) => {
 	let currentClient = 0;
+	console.log('login batch', current, total, step);
 	while (current < total) {
 		const batch = [];
 		for (let i = 0; i < step; i++, current++) {
@@ -305,6 +318,10 @@ export const doLogin = async (countInit, batchSize = 1, type = 'web') => {
 
 	let i = 0;
 	while (i < total) {
+		if (!clients[i]) {
+			console.error(`client ${ i } not initiliazed`);
+			continue;
+		}
 		if (clients[i].loggedInInternal) {
 			i++;
 			continue;
