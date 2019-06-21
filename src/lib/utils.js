@@ -49,7 +49,7 @@ export const getLoginOffset = async (howMany) => {
 				return reject(err);
 			}
 
-			resolve(current);
+			resolve(parseInt(current));
 		})
 	});
 };
