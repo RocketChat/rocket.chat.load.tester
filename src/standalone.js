@@ -11,6 +11,7 @@ import {
 import {
 	initOffset,
 	getLoginOffset,
+	getRoomId,
 } from './lib/utils';
 
 const {
@@ -62,24 +63,27 @@ async function main () {
 	}
 
 	if (['yes', 'true'].includes(OPEN_ROOM)) {
-		console.log('opening room:', ROOM_ID);
+		console.log('opening rooms');
 
 		const total = clients.length;
 
 		let i = 0;
 		while (i < total) {
+			const rid = await getRoomId(ROOM_ID);
+
 			if (!clients[i].loggedInInternal) {
 				i++;
 				continue;
 			}
-			await openRoom(clients[i], ROOM_ID, CLIENT_TYPE);
+			await openRoom(clients[i], rid, CLIENT_TYPE);
+			clients[i].roomIdInternal = rid;
 			i++;
 		}
 
 		if (['yes', 'true'].includes(SEND_MESSAGES)) {
-			console.log('sending messages to:', ROOM_ID);
+			console.log('sending messages');
 
-			sendRandomMessage({ rid: ROOM_ID });
+			sendRandomMessage();
 		}
 	}
 	console.log('done!');

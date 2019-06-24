@@ -231,7 +231,19 @@ export async function sendMessage(client, rid, msg) {
 export async function subscribeRoom(client, rid) {
 	const end = prom.roomSubscribe.startTimer();
 	try {
+		// console.log('client.subscribeRoom', rid);
 		await client.subscribeRoom(rid);
+
+
+        // const topic = 'stream-notify-room';
+        // const result = await Promise.all([
+        //     client.subscribe('stream-room-messages', rid),
+        //     // client.subscribe(topic, `${rid}/typing`),
+        //     // client.subscribe(topic, `${rid}/deleteMessage`)
+        // ]);
+
+		// console.log('result ->', result);
+
 		end({ status: 'success' });
 	} catch (e) {
 		console.error('error subscribing room', e);
@@ -343,7 +355,7 @@ const atAllInterval = 1000;
 const atHereInterval = 400;
 
 export let msgInterval;
-export function sendRandomMessage({ rid, totalClients, period, time }) {
+export function sendRandomMessage({ rid, totalClients, period, time } = {}) {
 	const total = totalClients || clients.length;
 	const msgPerSecond = 0.002857142857143;
 	const timeInterval = period !== 'custom' ? (1 / msgPerSecond/ total) : time;
@@ -369,7 +381,7 @@ export function sendRandomMessage({ rid, totalClients, period, time }) {
 		}
 
 		try {
-			sendMessage(clients[chosenOne], rid, `${ mention }hello from ${ chosenOne }`);
+			sendMessage(clients[chosenOne], (rid || clients[chosenOne].roomIdInternal), `${ mention }hello from ${ chosenOne }`);
 		} catch (e) {
 			console.error('error sending message', e);
 		}

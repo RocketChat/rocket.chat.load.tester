@@ -2,39 +2,72 @@ import redis from 'redis';
 
 const {
 	LOGIN_OFFSET,
+	RESET_OFFSET,
+	SEATS_PER_ROOM,
+	RESET_SEATS,
+	REDIS_HOST,
+	REDIS_PORT,
 } = process.env;
 
 const REDIS_OFFSET_KEY = 'load-test-offset';
+const REDIS_ROOM_KEY = 'load-test-room';
 
 let redisClient;
 export const initOffset = async () => {
 	redisClient = redis.createClient({
-		host: process.env.REDIS_HOST || '127.0.0.1',
-		port: process.env.REDIS_PORT || '6379',
+		host: REDIS_HOST || '127.0.0.1',
+		port: REDIS_PORT || '6379',
 	});
 
-	if (process.env.RESET_OFFSET) {
-		return new Promise((resolve, reject) => {
-			redisClient.set(REDIS_OFFSET_KEY, 0, (err) => {
-				if (err) {
-					return reject(err);
-				}
-				resolve();
-			})
-		});
+	if (RESET_OFFSET) {
+		redisSet(REDIS_OFFSET_KEY, 0);
+	}
+
+	if (RESET_SEATS) {
+		redisSet(REDIS_ROOM_KEY, 0);
 	}
 };
 
-export const getCurrentOffset = async () => {
+const redisGet = async (key) => {
 	return new Promise((resolve, reject) => {
-		redisClient.get(REDIS_OFFSET_KEY, (err, result) => {
+		redisClient.get(key, (err, result) => {
 			if (err) {
 				return reject(err);
 			}
 
-			resolve(result || 0);
+			resolve(result);
 		})
 	});
+};
+
+const redisSet = async (key, value) => {
+	return new Promise((resolve, reject) => {
+		redisClient.set(key, value, (err, result) => {
+			if (err) {
+				return reject(err);
+			}
+
+			resolve(result);
+		})
+	});
+};
+
+const redisInc = async (key) => {
+	return new Promise((resolve, reject) => {
+		redisClient.incr(key, (err, result) => {
+			if (err) {
+				return reject(err);
+			}
+
+			resolve(parseInt(result));
+		})
+	});
+};
+
+export const getCurrentOffset = async () => {
+	const offset = await redisGet(REDIS_OFFSET_KEY);
+
+	return offset || 0;
 }
 
 export const getLoginOffset = async (howMany) => {
@@ -50,6 +83,16 @@ export const getLoginOffset = async (howMany) => {
 			}
 
 			resolve(parseInt(current));
-		})
+		});
 	});
+};
+
+export const getRoomId = async (roomId) => {
+	if (typeof SEATS_PER_ROOM === 'undefined') {
+		return roomId;
+	}
+
+	const current = await redisInc(REDIS_ROOM_KEY) - 1;
+
+	return roomId.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM)));
 };
