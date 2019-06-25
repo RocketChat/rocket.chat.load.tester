@@ -3,6 +3,7 @@ import redis from 'redis';
 const {
 	LOGIN_OFFSET,
 	RESET_OFFSET,
+	INITIAL_LOGIN_OFFSET,
 	SEATS_PER_ROOM,
 	RESET_SEATS,
 	REDIS_HOST,
@@ -66,6 +67,11 @@ const redisInc = async (key) => {
 
 export const getCurrentOffset = async () => {
 	const offset = await redisGet(REDIS_OFFSET_KEY);
+
+	if (!offset && INITIAL_LOGIN_OFFSET) {
+		await redisSet(REDIS_OFFSET_KEY, parseInt(INITIAL_LOGIN_OFFSET));
+		return parseInt(INITIAL_LOGIN_OFFSET);
+	}
 
 	return offset || 0;
 }
