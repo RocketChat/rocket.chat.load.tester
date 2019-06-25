@@ -20,11 +20,11 @@ export const initOffset = async () => {
 	});
 
 	if (RESET_OFFSET) {
-		redisSet(REDIS_OFFSET_KEY, 0);
+		redisSet(REDIS_OFFSET_KEY, parseInt(RESET_OFFSET) || 0);
 	}
 
 	if (RESET_SEATS) {
-		redisSet(REDIS_ROOM_KEY, 0);
+		redisSet(REDIS_ROOM_KEY, parseInt(RESET_SEATS) || 0);
 	}
 };
 
