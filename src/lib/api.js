@@ -37,20 +37,30 @@ export async function connect(type) {
 	const socket = await client.socket;
 
 	await new Promise(async (resolve) => {
-		if (type === 'web') {
-			await socket.ddp.call('public-settings/get');
-			await socket.ddp.call('permissions/get');
+		switch (type) {
+			case 'web':
+				await socket.ddp.call('public-settings/get');
+				await socket.ddp.call('permissions/get');
 
-			// this is done to simulate web client
-			await client.subscribe('meteor.loginServiceConfiguration');
-			await client.subscribe('meteor_autoupdate_clientVersions');
+				// this is done to simulate web client
+				await client.subscribe('meteor.loginServiceConfiguration');
+				await client.subscribe('meteor_autoupdate_clientVersions');
 
-			// await client.subscribeNotifyAll();
-			await Promise.all([
-				'updateEmojiCustom',
-				'deleteEmojiCustom',
-				'public-settings-changed'
-			].map(event => client.subscribe('stream-notify-all', event, false)));
+				// await client.subscribeNotifyAll();
+				await Promise.all([
+					'updateEmojiCustom',
+					'deleteEmojiCustom',
+					'public-settings-changed'
+				].map(event => client.subscribe('stream-notify-all', event, false)));
+				break;
+
+			case 'android':
+			case 'ios':
+				await Promise.all([
+					client.get('settings.public'),
+					client.get('settings.oauth'),
+				]);
+				break;
 		}
 
 		resolve();
@@ -132,49 +142,62 @@ export async function login(client, credentials, type) {
 		const user = await client.login(credentials);
 
 		// do one by one as doing three at same time was hanging
-		if (type === 'web') {
-			// await client.subscribeLoggedNotify();
-			await Promise.all([
-				'Users:NameChanged',
-				'Users:Deleted',
-				'updateAvatar',
-				'updateEmojiCustom',
-				'deleteEmojiCustom',
-				'roles-change',
-				'permissions-changed'
-			].map(event => client.subscribe('stream-notify-logged', event, false)));
-
-			// await client.subscribeNotifyUser();
-			await Promise.all([
-				'message',
-				'otr',
-				'webrtc',
-				'notification',
-				'audioNotification',
-				'rooms-changed',
-				'subscriptions-changed'
-			].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
-
-			if (!NO_SUBSCRIBE) {
-				await client.subscribeUserData();
-			} else if (NO_SUBSCRIBE === 'no-active') {
+		switch (type) {
+			case 'web':
+				// await client.subscribeLoggedNotify();
 				await Promise.all([
-					'roles',
-					'webdavAccounts',
-					'userData',
-					// 'activeUsers'
-				].map(stream => client.subscribe(stream, '')));
-			}
-		} else if (type === 'android' || type === 'ios') {
-			await Promise.all([
-				'rooms-changed',
-				'subscriptions-changed'
-			].map((stream) => client.subscribe('stream-notify-user', `${user.id}/${stream}`)));
+					'Users:NameChanged',
+					'Users:Deleted',
+					'updateAvatar',
+					'updateEmojiCustom',
+					'deleteEmojiCustom',
+					'roles-change',
+					'permissions-changed'
+				].map(event => client.subscribe('stream-notify-logged', event, false)));
 
-			await Promise.all([
-				'userData',
-				'activeUsers',
-			].map((stream) => client.subscribe(stream, '')));
+				// await client.subscribeNotifyUser();
+				await Promise.all([
+					'message',
+					'otr',
+					'webrtc',
+					'notification',
+					'audioNotification',
+					'rooms-changed',
+					'subscriptions-changed'
+				].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
+
+				if (!NO_SUBSCRIBE) {
+					await client.subscribeUserData();
+				} else if (NO_SUBSCRIBE === 'no-active') {
+					await Promise.all([
+						'roles',
+						'webdavAccounts',
+						'userData',
+						// 'activeUsers'
+					].map(stream => client.subscribe(stream, '')));
+				}
+				break;
+
+			case 'android':
+			case 'ios':
+				await Promise.all([
+					'rooms-changed',
+					'subscriptions-changed'
+				].map((stream) => client.subscribe('stream-notify-user', `${user.id}/${stream}`)));
+
+				await Promise.all([
+					'userData',
+					'activeUsers',
+				].map((stream) => client.subscribe(stream, '')));
+
+				await Promise.all([
+					client.get('me'),
+					client.get('permissions'),
+					client.get('settings.public'),
+					client.get('subscriptions.get'),
+					client.get('rooms.get'),
+				]);
+				break;
 		}
 
 		await Promise.all(getLoginSubs(type).map(([stream, ...params]) => client.subscribe(stream, ...params)));
@@ -234,7 +257,6 @@ export async function subscribeRoom(client, rid) {
 		// console.log('client.subscribeRoom', rid);
 		await client.subscribeRoom(rid);
 
-
         // const topic = 'stream-notify-room';
         // const result = await Promise.all([
         //     client.subscribe('stream-room-messages', rid),
@@ -271,15 +293,27 @@ export async function openRoom(client, rid, type) {
 			subscribeRoom(client, rid),
 		];
 
-		if (type === 'web') {
-			calls.push(socket.ddp.call('getRoomRoles', rid));
-			calls.push(socket.ddp.call('loadHistory', rid, null, 50, new Date()));
+		switch (type) {
+			case 'web':
+				calls.push(socket.ddp.call('getRoomRoles', rid));
+				calls.push(socket.ddp.call('loadHistory', rid, null, 50, new Date()));
+				break;
+
+			case 'android':
+			case 'ios':
+				calls.push(client.get('commands.list'));
+				calls.push(client.get('groups.members', { roomId: rid }));
+				calls.push(client.get('groups.roles', { roomId: rid }));
+				calls.push(client.get('groups.history', { roomId: rid }));
+				break;
 		}
 
 		await Promise.all(calls);
 
 		if (type === 'web') {
 			await socket.ddp.call('readMessages', rid);
+		} else if (type === 'android' || type === 'ios') {
+			await client.post('subscriptions.read', { rid });
 		}
 
 		end({ status: 'success' });
