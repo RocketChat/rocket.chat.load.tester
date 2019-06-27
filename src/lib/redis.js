@@ -83,3 +83,15 @@ export const redisInc = async (key) => {
 	});
 };
 
+export const redisIncBy = async (key, by) => {
+	return new Promise((resolve, reject) => {
+		redisClient.incrby(key, by, (err, result) => {
+			if (err) {
+				return reject(err);
+			}
+
+			resolve(parseInt(result));
+		})
+	});
+};
+

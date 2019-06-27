@@ -2,6 +2,7 @@ import {
 	redisGet,
 	redisSet,
 	redisInc,
+	redisIncBy,
 	REDIS_ROOM_KEY,
 	REDIS_OFFSET_KEY,
 } from './redis';
@@ -28,16 +29,11 @@ export const getLoginOffset = async (howMany) => {
 		return parseInt(LOGIN_OFFSET);
 	}
 
-	return new Promise(async (resolve, reject) => {
-		const current = await getCurrentOffset();
-		redisClient.incrby(REDIS_OFFSET_KEY, howMany, (err, result) => {
-			if (err) {
-				return reject(err);
-			}
+	const current = await getCurrentOffset();
 
-			resolve(parseInt(current));
-		});
-	});
+	await redisIncBy(REDIS_OFFSET_KEY, howMany);
+
+	return parseInt(current);
 };
 
 export const getRoomId = async (roomId) => {
