@@ -1,69 +1,16 @@
-import redis from 'redis';
+import {
+	redisGet,
+	redisSet,
+	redisInc,
+	REDIS_ROOM_KEY,
+	REDIS_OFFSET_KEY,
+} from './redis';
 
 const {
 	LOGIN_OFFSET,
-	RESET_OFFSET,
 	INITIAL_LOGIN_OFFSET,
 	SEATS_PER_ROOM,
-	RESET_SEATS,
-	REDIS_HOST,
-	REDIS_PORT,
 } = process.env;
-
-const REDIS_OFFSET_KEY = 'load-test-offset';
-const REDIS_ROOM_KEY = 'load-test-room';
-
-let redisClient;
-export const initOffset = async () => {
-	redisClient = redis.createClient({
-		host: REDIS_HOST || '127.0.0.1',
-		port: REDIS_PORT || '6379',
-	});
-
-	if (RESET_OFFSET) {
-		redisSet(REDIS_OFFSET_KEY, parseInt(RESET_OFFSET) || 0);
-	}
-
-	if (RESET_SEATS) {
-		redisSet(REDIS_ROOM_KEY, parseInt(RESET_SEATS) || 0);
-	}
-};
-
-const redisGet = async (key) => {
-	return new Promise((resolve, reject) => {
-		redisClient.get(key, (err, result) => {
-			if (err) {
-				return reject(err);
-			}
-
-			resolve(result);
-		})
-	});
-};
-
-const redisSet = async (key, value) => {
-	return new Promise((resolve, reject) => {
-		redisClient.set(key, value, (err, result) => {
-			if (err) {
-				return reject(err);
-			}
-
-			resolve(result);
-		})
-	});
-};
-
-const redisInc = async (key) => {
-	return new Promise((resolve, reject) => {
-		redisClient.incr(key, (err, result) => {
-			if (err) {
-				return reject(err);
-			}
-
-			resolve(parseInt(result));
-		})
-	});
-};
 
 export const getCurrentOffset = async () => {
 	const offset = await redisGet(REDIS_OFFSET_KEY);

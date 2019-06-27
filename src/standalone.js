@@ -9,10 +9,18 @@ import {
 } from './lib/api';
 
 import {
-	initOffset,
 	getLoginOffset,
 	getRoomId,
 } from './lib/utils';
+
+import {
+	redisInit,
+} from './lib/redis';
+
+import {
+	events,
+	EVENT_RATE_CHANGE,
+} from './lib/events';
 
 const {
 	HOW_MANY = 1,
@@ -25,6 +33,7 @@ const {
 	USERS_USERNAME,
 	USERS_PASSWORD,
 	USERS_EMAIL,
+	MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
 setDefaultCredentials({
@@ -34,7 +43,7 @@ setDefaultCredentials({
 });
 
 async function main () {
-	await initOffset();
+	await redisInit();
 
 	console.log('connecting clients:', HOW_MANY);
 
@@ -83,7 +92,11 @@ async function main () {
 		if (['yes', 'true'].includes(SEND_MESSAGES)) {
 			console.log('sending messages');
 
-			sendRandomMessage();
+			sendRandomMessage({
+				msgPerSecond: parseFloat(MESSAGE_SENDING_RATE),
+			});
+
+			events.on(EVENT_RATE_CHANGE, (msgPerSecond) => sendRandomMessage({ msgPerSecond }));
 		}
 	}
 	console.log('done!');

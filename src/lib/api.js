@@ -389,10 +389,14 @@ const atAllInterval = 1000;
 const atHereInterval = 400;
 
 export let msgInterval;
-export function sendRandomMessage({ rid, totalClients, period, time } = {}) {
+export function sendRandomMessage({ rid, totalClients, period, time, msgPerSecond } = {}) {
 	const total = totalClients || clients.length;
-	const msgPerSecond = 0.002857142857143;
-	const timeInterval = period !== 'custom' ? (1 / msgPerSecond/ total) : time;
+
+	if (!msgPerSecond) {
+		return clearInterval(msgInterval);
+	}
+
+	const timeInterval = period !== 'custom' ? (1 / msgPerSecond / total) : time;
 
 	if (msgInterval) {
 		clearInterval(msgInterval);
