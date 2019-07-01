@@ -33,6 +33,7 @@ const {
 	USERS_USERNAME,
 	USERS_PASSWORD,
 	USERS_EMAIL,
+	HOST_URL = 'http://localhost:3000',
 	MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
@@ -42,26 +43,31 @@ setDefaultCredentials({
 	email: USERS_EMAIL,
 });
 
+const urls = HOST_URL.split('|');
+const totalUrls = urls.length;
+
 async function main () {
 	await redisInit();
 
-	console.log('connecting clients:', HOW_MANY);
+	const howMany = parseInt(HOW_MANY);
+
+	console.log('connecting clients:', howMany);
 
 	const go = [];
-	for (let i = 0; i < parseInt(HOW_MANY); i++) {
-		go.push(connect(CLIENT_TYPE));
+	for (let i = 0; i < howMany; i++) {
+		go.push(connect(urls[i % totalUrls], CLIENT_TYPE));
 	}
 	await Promise.all(go).then(c => clients.push(...c));
 
 	console.log('logging in clients:', HOW_MANY);
 
-	await doLogin(await getLoginOffset(parseInt(HOW_MANY)), Math.min(parseInt(HOW_MANY), parseInt(LOGIN_BATCH)), CLIENT_TYPE);
+	await doLogin(await getLoginOffset(howMany), Math.min(howMany, parseInt(LOGIN_BATCH)), CLIENT_TYPE);
 
 	if (JOIN_ROOM) {
 		console.log('joining room:', JOIN_ROOM);
 
 		let i = 0;
-		while (i < parseInt(HOW_MANY)) {
+		while (i < howMany) {
 			if (!clients[i].loggedInInternal) {
 				i++;
 				continue;

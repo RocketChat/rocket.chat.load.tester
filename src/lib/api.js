@@ -17,17 +17,16 @@ const logger = false || {
 
 const {
 	TRY_REGISTER = 'yes',
-	HOST_URL,
 	SSL_ENABLED,
 	NO_SUBSCRIBE,
 } = process.env;
 
 const tryRegister = ['yes', 'true'].includes(TRY_REGISTER);
 
-export async function connect(type) {
+export async function connect(host, type) {
 	const client = new RocketChatClient({
 		logger,
-		host: HOST_URL || 'http://localhost:3000',
+		host,
 		useSsl: SSL_ENABLED || true,
 	});
 	await client.connect();
