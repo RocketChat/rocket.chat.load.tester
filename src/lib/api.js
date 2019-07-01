@@ -21,13 +21,15 @@ const {
 	NO_SUBSCRIBE,
 } = process.env;
 
+const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL_ENABLED) : true;
+
 const tryRegister = ['yes', 'true'].includes(TRY_REGISTER);
 
 export async function connect(host, type) {
 	const client = new RocketChatClient({
 		logger,
 		host,
-		useSsl: SSL_ENABLED || true,
+		useSsl,
 	});
 	await client.connect();
 
@@ -243,7 +245,7 @@ export async function sendMessage(client, rid, msg) {
 		await client.sendMessage(msg, rid);
 		end({ status: 'success' });
 	} catch (e) {
-		console.error('error sending message', e);
+		console.error('error sending message', { uid: client.userId, rid }, e);
 		end({ status: 'error' });
 	}
 
@@ -267,7 +269,7 @@ export async function subscribeRoom(client, rid) {
 
 		end({ status: 'success' });
 	} catch (e) {
-		console.error('error subscribing room', e);
+		console.error('error subscribing room', { uid: client.userId, rid }, e);
 		end({ status: 'error' });
 	}
 }
@@ -278,12 +280,12 @@ export async function joinRoom(client, rid) {
 		await client.joinRoom({ rid });
 		end({ status: 'success' });
 	} catch (e) {
-		console.error('error joining room', e);
+		console.error('error joining room', { uid: client.userId, rid }, e);
 		end({ status: 'error' });
 	}
 }
 
-export async function openRoom(client, rid, type) {
+export async function openRoom(client, rid, type, roomType = 'groups') {
 	const end = prom.openRoom.startTimer();
 	try {
 		const socket = await client.socket;
@@ -301,9 +303,9 @@ export async function openRoom(client, rid, type) {
 			case 'android':
 			case 'ios':
 				calls.push(client.get('commands.list'));
-				calls.push(client.get('groups.members', { roomId: rid }));
-				calls.push(client.get('groups.roles', { roomId: rid }));
-				calls.push(client.get('groups.history', { roomId: rid }));
+				calls.push(client.get(`${ roomType }.members`, { roomId: rid }));
+				calls.push(client.get(`${ roomType }.roles`, { roomId: rid }));
+				calls.push(client.get(`${ roomType }.history`, { roomId: rid }));
 				break;
 		}
 
@@ -317,7 +319,7 @@ export async function openRoom(client, rid, type) {
 
 		end({ status: 'success' });
 	} catch (e) {
-		console.error('error open room', e);
+		console.error('error open room', { uid: client.userId, rid }, e);
 		end({ status: 'error' });
 	}
 }
