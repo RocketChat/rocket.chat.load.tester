@@ -83,7 +83,7 @@ async function main () {
 
 		const total = clients.length;
 
-		const roomOffset = getRoomOffset();
+		let roomOffset = getRoomOffset();
 
 		let i = 0;
 		while (i < total) {
