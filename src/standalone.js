@@ -11,6 +11,7 @@ import {
 import {
 	getLoginOffset,
 	getRoomId,
+	getRoomOffset,
 } from './lib/utils';
 
 import {
@@ -82,14 +83,17 @@ async function main () {
 
 		const total = clients.length;
 
+		const roomOffset = getRoomOffset();
+
 		let i = 0;
 		while (i < total) {
-			const rid = await getRoomId(ROOM_ID);
+			const rid = getRoomId(ROOM_ID, roomOffset++);
 
 			if (!clients[i].loggedInInternal) {
 				i++;
 				continue;
 			}
+
 			await openRoom(clients[i], rid, CLIENT_TYPE);
 			clients[i].roomIdInternal = rid;
 			i++;

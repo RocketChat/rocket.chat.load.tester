@@ -36,12 +36,18 @@ export const getLoginOffset = async (howMany) => {
 	return parseInt(current);
 };
 
-export const getRoomId = async (roomId) => {
+export const getRoomOffset = async (howMany) => {
+	const current = await redisGet(REDIS_ROOM_KEY) || 0;
+
+	await redisIncBy(REDIS_ROOM_KEY, howMany);
+
+	return parseInt(current);
+};
+
+export const getRoomId = (roomId, current) => {
 	if (typeof SEATS_PER_ROOM === 'undefined') {
 		return roomId;
 	}
-
-	const current = await redisInc(REDIS_ROOM_KEY) - 1;
 
 	return roomId.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM)));
 };
