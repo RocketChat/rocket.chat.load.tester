@@ -106,7 +106,9 @@ async function main () {
 				msgPerSecond: parseFloat(MESSAGE_SENDING_RATE),
 			});
 
-			events.on(EVENT_RATE_CHANGE, (msgPerSecond) => sendRandomMessage({ msgPerSecond }));
+			events.on(EVENT_RATE_CHANGE, (msgPerSecond) =>
+				setTimeout(() => sendRandomMessage({ msgPerSecond }), Math.random() * 5000)
+			);
 		}
 	}
 	console.log('done!');
