@@ -36,6 +36,7 @@ const {
 	USERS_EMAIL,
 	HOST_URL = 'http://localhost:3000',
 	MESSAGE_SENDING_RATE = 0.002857142857143,
+	LOG_IN = 'yes',
 } = process.env;
 
 setDefaultCredentials({
@@ -46,6 +47,72 @@ setDefaultCredentials({
 
 const urls = HOST_URL.split('|');
 const totalUrls = urls.length;
+
+const loginClients = async () => {
+	if (!['yes', 'true'].includes(LOG_IN)) {
+		return;
+	}
+
+	console.log('logging in clients:', HOW_MANY);
+
+	return doLogin(await getLoginOffset(howMany), Math.min(howMany, parseInt(LOGIN_BATCH)), CLIENT_TYPE);
+}
+
+const joinRooms = async () => {
+	if (!JOIN_ROOM) {
+		return;
+	}
+	console.log('joining room:', JOIN_ROOM);
+
+	let i = 0;
+	while (i < howMany) {
+		if (!clients[i].loggedInInternal) {
+			i++;
+			continue;
+		}
+		await joinRoom(clients[i], JOIN_ROOM);
+		i++;
+	}
+}
+
+const openRooms = async () => {
+	if (!['yes', 'true'].includes(OPEN_ROOM)) {
+		return;
+	}
+	console.log('opening rooms');
+
+	const total = clients.length;
+
+	let roomOffset = await getRoomOffset(howMany);
+
+	let i = 0;
+	while (i < total) {
+		const rid = getRoomId(ROOM_ID, roomOffset++);
+
+		if (!clients[i].loggedInInternal) {
+			i++;
+			continue;
+		}
+
+		await openRoom(clients[i], rid, CLIENT_TYPE);
+		clients[i].roomIdInternal = rid;
+		i++;
+	}
+
+	if (!['yes', 'true'].includes(SEND_MESSAGES)) {
+		return;
+	}
+
+	console.log('sending messages');
+
+	sendRandomMessage({
+		msgPerSecond: parseFloat(MESSAGE_SENDING_RATE),
+	});
+
+	events.on(EVENT_RATE_CHANGE, (msgPerSecond) =>
+		setTimeout(() => sendRandomMessage({ msgPerSecond }), Math.random() * 5000)
+	);
+}
 
 async function main () {
 	await redisInit();
@@ -60,57 +127,12 @@ async function main () {
 	}
 	await Promise.all(go).then(c => clients.push(...c));
 
-	console.log('logging in clients:', HOW_MANY);
+	await loginClients();
 
-	await doLogin(await getLoginOffset(howMany), Math.min(howMany, parseInt(LOGIN_BATCH)), CLIENT_TYPE);
+	await joinRooms();
 
-	if (JOIN_ROOM) {
-		console.log('joining room:', JOIN_ROOM);
+	await openRooms();
 
-		let i = 0;
-		while (i < howMany) {
-			if (!clients[i].loggedInInternal) {
-				i++;
-				continue;
-			}
-			await joinRoom(clients[i], JOIN_ROOM);
-			i++;
-		}
-	}
-
-	if (['yes', 'true'].includes(OPEN_ROOM)) {
-		console.log('opening rooms');
-
-		const total = clients.length;
-
-		let roomOffset = await getRoomOffset(howMany);
-
-		let i = 0;
-		while (i < total) {
-			const rid = getRoomId(ROOM_ID, roomOffset++);
-
-			if (!clients[i].loggedInInternal) {
-				i++;
-				continue;
-			}
-
-			await openRoom(clients[i], rid, CLIENT_TYPE);
-			clients[i].roomIdInternal = rid;
-			i++;
-		}
-
-		if (['yes', 'true'].includes(SEND_MESSAGES)) {
-			console.log('sending messages');
-
-			sendRandomMessage({
-				msgPerSecond: parseFloat(MESSAGE_SENDING_RATE),
-			});
-
-			events.on(EVENT_RATE_CHANGE, (msgPerSecond) =>
-				setTimeout(() => sendRandomMessage({ msgPerSecond }), Math.random() * 5000)
-			);
-		}
-	}
 	console.log('done!');
 };
 main();
