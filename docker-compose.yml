@@ -1,0 +1,63 @@
+version: '3'
+
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
+services:
+  redis:
+    image: redis:5.0.5-alpine
+    restart: on-failure
+
+  load-scale:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - prometheus
+      - grafana
+    environment:
+      - HOST_URL=${HOST_URL}
+      - REDIS_HOST=redis
+      - TRY_REGISTER=no
+      - HOW_MANY=${HOW_MANY:2000}
+      - SEATS_PER_ROOM=${SEATS_PER_ROOM:100}
+      - LOGIN_BATCH=${LOGIN_BATCH:20}
+      - MESSAGE_SENDING_RATE=0.001428571
+      - ROOM_ID=${ROOM_ID:load-test-private-%s}
+      - OPEN_ROOM=yes
+      #- LOGIN_OFFSET=1
+      #- INITIAL_LOGIN_OFFSET=1
+      - SEND_MESSAGES=yes
+      - CLIENT_TYPE=android
+      - USERS_USERNAME=${USERS_USERNAME:test.user.%s}
+      - USERS_PASSWORD=${USERS_PASSWORD}
+      #- JOIN_ROOM=kceGi2FBKFePvnj6Q
+
+  prometheus:
+    image: prom/prometheus:v2.5.0
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3300:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # - ./grafana/provisioning/:/etc/grafana/provisioning/
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=foobar
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
