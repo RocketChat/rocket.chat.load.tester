@@ -48,6 +48,8 @@ setDefaultCredentials({
 const urls = HOST_URL.split('|');
 const totalUrls = urls.length;
 
+const howMany = parseInt(HOW_MANY);
+
 const loginClients = async () => {
 	if (!['yes', 'true'].includes(LOG_IN)) {
 		return;
@@ -116,8 +118,6 @@ const openRooms = async () => {
 
 async function main () {
 	await redisInit();
-
-	const howMany = parseInt(HOW_MANY);
 
 	console.log('connecting clients:', howMany);
 
