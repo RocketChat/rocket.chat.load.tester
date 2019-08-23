@@ -85,11 +85,11 @@ const openRooms = async () => {
 
 	const total = clients.length;
 
-	let roomOffset = await getRoomOffset(howMany);
+	// let roomOffset = await getRoomOffset(howMany);
 
 	let i = 0;
 	while (i < total) {
-		const rid = getRoomId(ROOM_ID, roomOffset++);
+		const rid = getRoomId(ROOM_ID, clients[i].userCount);
 
 		if (!clients[i].loggedInInternal) {
 			i++;

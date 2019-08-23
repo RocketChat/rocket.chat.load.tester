@@ -381,6 +381,9 @@ export const doLogin = async (countInit, batchSize = 1, type = 'web') => {
 		const credentials = getCredentials(userCount);
 
 		await loginOrRegister(clients[i], credentials, type);
+
+		clients[i].userCount = userCount;
+
 		i++;
 	}
 }
