@@ -10,6 +10,8 @@ const {
 	RESET_SEATS,
 	REDIS_HOST,
 	REDIS_PORT,
+
+	INITIAL_LOGIN_OFFSET,
 } = process.env;
 
 export const REDIS_OFFSET_KEY = 'load-test-offset';
@@ -31,11 +33,16 @@ export const redisInit = async () => {
 	});
 
 	if (RESET_OFFSET) {
-		redisSet(REDIS_OFFSET_KEY, parseInt(RESET_OFFSET) || 0);
+		await redisSet(REDIS_OFFSET_KEY, parseInt(RESET_OFFSET) || 0);
 	}
 
 	if (RESET_SEATS) {
-		redisSet(REDIS_ROOM_KEY, parseInt(RESET_SEATS) || 0);
+		await redisSet(REDIS_ROOM_KEY, parseInt(RESET_SEATS) || 0);
+	}
+
+	const offset = await redisGet(REDIS_OFFSET_KEY);
+	if (!offset && INITIAL_LOGIN_OFFSET) {
+		await redisSet(REDIS_OFFSET_KEY, parseInt(INITIAL_LOGIN_OFFSET));
 	}
 
 	redisSub.on('message', (channel, message) => {
