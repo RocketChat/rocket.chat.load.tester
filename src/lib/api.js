@@ -137,7 +137,7 @@ const getCredentials = (current) => {
 	};
 }
 
-export async function login(client, credentials, type) {
+export async function login(client, credentials, type, userCount) {
 	const end = prom.login.startTimer();
 	try {
 		const user = await client.login(credentials);
@@ -208,6 +208,7 @@ export async function login(client, credentials, type) {
 		await Promise.all(getLoginMethods(type).map((params) => socket.ddp.call(...params)));
 
 		client.loggedInInternal = true;
+		client.userCount = userCount;
 
 		end({ status: 'success' });
 	} catch (e) {
@@ -324,9 +325,9 @@ export async function openRoom(client, rid, type, roomType = 'groups') {
 	}
 }
 
-export const loginOrRegister = async (client, credentials, type) => {
+export const loginOrRegister = async (client, credentials, type, userCount) => {
 	try {
-		await login(client, credentials, type);
+		await login(client, credentials, type, userCount);
 	} catch (e) {
 		console.log('error', e);
 		if (!tryRegister) {
@@ -335,7 +336,7 @@ export const loginOrRegister = async (client, credentials, type) => {
 		try {
 			await register(client, credentials, type);
 
-			await login(client, credentials, type);
+			await login(client, credentials, type, userCount);
 		} catch (e) {
 			console.error('could not login/register for', credentials, e);
 		}
@@ -350,7 +351,7 @@ export const doLoginBatch = async (current, total, step = 10, type) => {
 		for (let i = 0; i < step; i++, current++) {
 			// const userCount = current;
 			const credentials = getCredentials(current);
-			batch.push(loginOrRegister(clients[currentClient++], credentials, type))
+			batch.push(loginOrRegister(clients[currentClient++], credentials, type, current))
 		}
 		await Promise.all(batch)
 	}
@@ -380,9 +381,7 @@ export const doLogin = async (countInit, batchSize = 1, type = 'web') => {
 
 		const credentials = getCredentials(userCount);
 
-		await loginOrRegister(clients[i], credentials, type);
-
-		clients[i].userCount = userCount;
+		await loginOrRegister(clients[i], credentials, type, userCount);
 
 		i++;
 	}
