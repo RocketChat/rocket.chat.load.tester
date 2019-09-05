@@ -27,7 +27,6 @@ const {
 	HOW_MANY = 1,
 	LOGIN_BATCH = 10,
 	OPEN_ROOM = 'true',
-	ROOM_ID = 'GENERAL',
 	JOIN_ROOM,
 	SEND_MESSAGES = 'yes',
 	CLIENT_TYPE = 'web',
@@ -89,18 +88,17 @@ const openRooms = async () => {
 
 	let i = 0;
 	while (i < total) {
-		const rid = getRoomId(ROOM_ID, clients[i].userCount);
-
 		if (!clients[i].loggedInInternal) {
 			i++;
 			continue;
 		}
 
-		await openRoom(clients[i], rid, CLIENT_TYPE);
-		clients[i].roomIdInternal = rid;
+		await openRoom(clients[i], getRoomId(clients[i].userCount), CLIENT_TYPE);
 		i++;
 	}
+}
 
+const sendMessages = async () => {
 	if (!['yes', 'true'].includes(SEND_MESSAGES)) {
 		return;
 	}
@@ -132,6 +130,8 @@ async function main () {
 	await joinRooms();
 
 	await openRooms();
+
+	await sendMessages();
 
 	console.log('done!');
 };

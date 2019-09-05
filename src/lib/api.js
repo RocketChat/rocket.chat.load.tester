@@ -422,7 +422,7 @@ export function sendRandomMessage({ rid, totalClients, period, time, msgPerSecon
 		}
 
 		try {
-			sendMessage(clients[chosenOne], (rid || clients[chosenOne].roomIdInternal), `${ mention }hello from ${ chosenOne }`);
+			sendMessage(clients[chosenOne], (rid || getRoomId(clients[chosenOne].userCount)), `${ mention }hello from ${ chosenOne }`);
 		} catch (e) {
 			console.error('error sending message', e);
 		}

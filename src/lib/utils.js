@@ -8,6 +8,7 @@ import {
 const {
 	LOGIN_OFFSET,
 	SEATS_PER_ROOM,
+	ROOM_ID = 'GENERAL',
 } = process.env;
 
 export const getCurrentOffset = async () => {
@@ -26,10 +27,10 @@ export const getRoomOffset = async (howMany) => {
 	return (await redisIncBy(REDIS_ROOM_KEY, howMany)) - howMany;
 };
 
-export const getRoomId = (roomId, current) => {
+export const getRoomId = (current) => {
 	if (typeof SEATS_PER_ROOM === 'undefined') {
-		return roomId;
+		return ROOM_ID;
 	}
 
-	return roomId.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM)));
+	return ROOM_ID.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM)));
 };
