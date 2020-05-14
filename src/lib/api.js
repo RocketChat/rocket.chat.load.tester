@@ -2,6 +2,7 @@ import RocketChatClient from '@rocket.chat/sdk/clients/Rocketchat';
 import fetch from 'node-fetch';
 
 import * as prom from './prom';
+import { getRoomId } from './utils';
 
 global.fetch = fetch;
 
