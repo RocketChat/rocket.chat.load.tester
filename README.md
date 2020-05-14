@@ -1,5 +1,9 @@
 # rocket.chat.load.tester
 
+## Requirements
+
+Node v10
+
 ## How to use
 
 ```
