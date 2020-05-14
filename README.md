@@ -3,6 +3,7 @@
 ## Requirements
 
 Node v10
+Redis
 
 ## How to use
 
