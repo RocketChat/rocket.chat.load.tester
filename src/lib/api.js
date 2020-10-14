@@ -344,25 +344,22 @@ export const loginOrRegister = async (client, credentials, type, userCount) => {
 	}
 }
 
-//credit : https://stackoverflow.com/a/61413202/8179249
-Array.prototype.chunk = function(size) {
-	let data = [...this];  
-	let result = [];
-	  
-	  while(data.length) {
-		  result.push(data.splice(0, size));
-	  }
-  
-	  return result;
-  }
-
 export const doLoginBatch = async (current, total, step = 10, type) => {
 
 	console.log('login batch', current, total, step);
+
+	// Splice clients into chunks
+	const clientsCopy = [...clients];
+	const clientsChunks = [];
+	while(clientsCopy.length) {
+		clientsChunks.push(clientsCopy.splice(0, step));
+	}
 	
+	// Process every chunk
 	while(current < total)
 	{
-		clients.chunk(step).forEach(async clientsToBatch => {
+		for(const clientsToBatch of clientsChunks)
+		{
 			const batch = [];
 			clientsToBatch.forEach(client => {
 				current++;
@@ -370,7 +367,7 @@ export const doLoginBatch = async (current, total, step = 10, type) => {
 				batch.push(loginOrRegister(client, credentials, type, current));
 			});
 			await Promise.all(batch);
-		});
+		}
 	}
 
 	console.log(current, 'logged in');
