@@ -362,15 +362,15 @@ export const doLoginBatch = async (current, total, step = 10, type) => {
 		{
 			const batch = [];
 			clientsToBatch.forEach(client => {
-				current++;
 				const credentials = getCredentials(current);
 				batch.push(loginOrRegister(client, credentials, type, current));
+				current++;
 			});
 			await Promise.all(batch);
 		}
 	}
 
-	console.log(current, 'logged in');
+	console.log((current - 1), 'logged in');
 
 }
 
