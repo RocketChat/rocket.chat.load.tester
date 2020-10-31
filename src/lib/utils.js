@@ -11,10 +11,6 @@ const {
 	ROOM_ID = 'GENERAL',
 } = process.env;
 
-export const getCurrentOffset = async () => {
-	return (await redisGet(REDIS_OFFSET_KEY)) || 0;
-}
-
 export const getLoginOffset = async (howMany) => {
 	if (typeof LOGIN_OFFSET !== 'undefined') {
 		return parseInt(LOGIN_OFFSET);
@@ -32,5 +28,5 @@ export const getRoomId = (current) => {
 		return ROOM_ID;
 	}
 
-	return ROOM_ID.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM)));
+	return ROOM_ID.replace(/\%s/, parseInt(current / parseInt(SEATS_PER_ROOM) + 1));
 };

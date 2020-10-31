@@ -41,8 +41,10 @@ export async function connect(host, type) {
 	await new Promise(async (resolve) => {
 		switch (type) {
 			case 'web':
-				await socket.ddp.call('public-settings/get');
-				await socket.ddp.call('permissions/get');
+				await Promise.all([
+					client.get('settings.public'),
+					client.get('settings.oauth'),
+				]);
 
 				// this is done to simulate web client
 				await client.subscribe('meteor.loginServiceConfiguration');
@@ -100,13 +102,13 @@ const getLoginMethods = (type) => {
 	const methods = [];
 
 	if (type === 'web') {
-		methods.push(['listCustomSounds']);
-		methods.push(['listEmojiCustom']);
-		methods.push(['getUserRoles']);
-		methods.push(['subscriptions/get']);
-		methods.push(['rooms/get']);
-		methods.push(['apps/is-enabled']);
-		methods.push(['loadLocale', 'pt-BR']);
+		// methods.push(['listCustomSounds']);
+		// methods.push(['listEmojiCustom']);
+		// methods.push(['getUserRoles']);
+		// methods.push(['subscriptions/get']);
+		// methods.push(['rooms/get']);
+		// methods.push(['apps/is-enabled']);
+		// methods.push(['loadLocale', 'pt-BR']);
 		// methods.push(['autoTranslate.getSupportedLanguages', 'en']);
 	}
 
@@ -151,10 +153,10 @@ export async function login(client, credentials, type, userCount) {
 					'Users:NameChanged',
 					'Users:Deleted',
 					'updateAvatar',
-					'updateEmojiCustom',
-					'deleteEmojiCustom',
 					'roles-change',
-					'permissions-changed'
+					'private-settings-changed',
+					'deleteCustomUserStatus',
+					'updateCustomUserStatus',
 				].map(event => client.subscribe('stream-notify-logged', event, false)));
 
 				// await client.subscribeNotifyUser();
@@ -165,42 +167,54 @@ export async function login(client, credentials, type, userCount) {
 					'notification',
 					'audioNotification',
 					'rooms-changed',
-					'subscriptions-changed'
+					'subscriptions-changed',
+					'userData',
+					'uiInteraction',
 				].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
 
-				if (!NO_SUBSCRIBE) {
-					await client.subscribeUserData();
-				} else if (NO_SUBSCRIBE === 'no-active') {
-					await Promise.all([
-						'roles',
-						'webdavAccounts',
-						'userData',
-						// 'activeUsers'
-					].map(stream => client.subscribe(stream, '')));
-				}
+				// if (!NO_SUBSCRIBE) {
+				// 	await client.subscribeUserData();
+				// } else if (NO_SUBSCRIBE === 'no-active') {
+				// 	await Promise.all([
+				// 		'roles',
+				// 		'webdavAccounts',
+				// 		'userData',
+				// 		// 'activeUsers'
+				// 	].map(stream => client.subscribe(stream, '')));
+				// }
 				break;
 
 			case 'android':
 			case 'ios':
 				await Promise.all([
 					'rooms-changed',
-					'subscriptions-changed'
+					'subscriptions-changed',
+					'userData',
 				].map((stream) => client.subscribe('stream-notify-user', `${user.id}/${stream}`)));
 
-				await Promise.all([
-					'userData',
-					'activeUsers',
-				].map((stream) => client.subscribe(stream, '')));
+				// TODO update userData
+				// await Promise.all([
+				// 	'userData',
+				// 	'activeUsers',
+				// ].map((stream) => client.subscribe(stream, '')));
 
-				await Promise.all([
-					client.get('me'),
-					client.get('permissions'),
-					client.get('settings.public'),
-					client.get('subscriptions.get'),
-					client.get('rooms.get'),
-				]);
+				// await Promise.all([
+				// 	client.get('me'),
+				// 	client.get('permissions'),
+				// 	client.get('settings.public'),
+				// 	client.get('subscriptions.get'),
+				// 	client.get('rooms.get'),
+				// ]);
 				break;
 		}
+
+		await Promise.all([
+			client.get('me'),
+			client.get('permissions'),
+			client.get('settings.public'),
+			client.get('subscriptions.get'),
+			client.get('rooms.get'),
+		]);
 
 		await Promise.all(getLoginSubs(type).map(([stream, ...params]) => client.subscribe(stream, ...params)));
 
@@ -298,8 +312,12 @@ export async function openRoom(client, rid, type, roomType = 'groups') {
 
 		switch (type) {
 			case 'web':
-				calls.push(socket.ddp.call('getRoomRoles', rid));
-				calls.push(socket.ddp.call('loadHistory', rid, null, 50, new Date()));
+				// calls.push(socket.ddp.call('getRoomRoles', rid));
+				// calls.push(socket.ddp.call('loadHistory', rid, null, 50, new Date()));
+				// calls.push(client.get('commands.list'));
+				// calls.push(client.get(`${ roomType }.members`, { roomId: rid }));
+				calls.push(client.get(`${ roomType }.roles`, { roomId: rid }));
+				calls.push(client.get(`${ roomType }.history`, { roomId: rid }));
 				break;
 
 			case 'android':
@@ -314,7 +332,8 @@ export async function openRoom(client, rid, type, roomType = 'groups') {
 		await Promise.all(calls);
 
 		if (type === 'web') {
-			await socket.ddp.call('readMessages', rid);
+			// await socket.ddp.call('readMessages', rid);
+			await client.post('subscriptions.read', { rid });
 		} else if (type === 'android' || type === 'ios') {
 			await client.post('subscriptions.read', { rid });
 		}
