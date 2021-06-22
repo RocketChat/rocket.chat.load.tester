@@ -5,11 +5,11 @@ import * as prom from '../lib/prom';
 import {
 	// login,
 	// register,
-	sendMessage,
+	// sendMessage,
 	msgInterval,
 	openRoom,
 	joinRoom,
-	connect,
+	connectAndLogin,
 	clients,
 	// loginOrRegister,
 	// doLoginBatch,
@@ -29,7 +29,7 @@ router.post('/connect', async (ctx/*, next*/) => {
 	const go = [];
 
 	for (let i = 0; i < howMany; i++) {
-		go.push(connect());
+		go.push(connectAndLogin());
 	}
 
 	Promise.all(go).then(c => clients.push(...c));

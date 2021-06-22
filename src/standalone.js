@@ -2,9 +2,8 @@ import {
 	clients,
 	openRoom,
 	joinRoom,
-	doLogin,
 	sendRandomMessage,
-	connect,
+	connectAndLogin,
 	setDefaultCredentials,
 } from './lib/api';
 
@@ -35,7 +34,6 @@ const {
 	USERS_EMAIL = 'tester-%s@domain.com',
 	HOST_URL = 'http://localhost:3000',
 	MESSAGE_SENDING_RATE = 0.002857142857143,
-	LOG_IN = 'yes',
 } = process.env;
 
 setDefaultCredentials({
@@ -49,15 +47,6 @@ const totalUrls = urls.length;
 
 const howMany = parseInt(HOW_MANY);
 
-const loginClients = async () => {
-	if (!['yes', 'true'].includes(LOG_IN)) {
-		return;
-	}
-
-	console.log('logging in clients:', HOW_MANY);
-
-	return doLogin(await getLoginOffset(howMany), Math.min(howMany, parseInt(LOGIN_BATCH)), CLIENT_TYPE);
-}
 
 const joinRooms = async () => {
 	if (!JOIN_ROOM) {
@@ -119,13 +108,19 @@ async function main () {
 
 	console.log('connecting clients:', howMany);
 
+	const offset = await getLoginOffset(howMany);
+
+	const loginBatch = Math.min(howMany, parseInt(LOGIN_BATCH));
+
 	const go = [];
 	for (let i = 0; i < howMany; i++) {
-		go.push(connect(urls[i % totalUrls], CLIENT_TYPE));
+		go.push(connectAndLogin(urls[i % totalUrls], CLIENT_TYPE, offset + i));
+		if (loginBatch > 0 && loginBatch % i === 1) {
+			await Promise.all(go).then(c => clients.push(...c));
+			go.length = 0;
+		}
 	}
 	await Promise.all(go).then(c => clients.push(...c));
-
-	await loginClients();
 
 	await joinRooms();
 

@@ -8,7 +8,7 @@ global.fetch = fetch;
 
 export const clients = [];
 
-const logger = false || {
+const logger = {
 	debug: (...args) => true || console.log(args),
 	info: (...args) => true || console.log(args),
 	warning: (...args) => true || console.log(args),
@@ -19,14 +19,14 @@ const logger = false || {
 const {
 	TRY_REGISTER = 'yes',
 	SSL_ENABLED,
-	NO_SUBSCRIBE,
+	LOG_IN = 'yes',
 } = process.env;
 
 const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL_ENABLED) : true;
 
 const tryRegister = ['yes', 'true'].includes(TRY_REGISTER);
 
-export async function connect(host, type) {
+export async function connectAndLogin(host, type, current) {
 	const client = new RocketChatClient({
 		logger,
 		host,
@@ -38,35 +38,34 @@ export async function connect(host, type) {
 
 	const socket = await client.socket;
 
-	await new Promise(async (resolve) => {
-		switch (type) {
-			case 'web':
-				await socket.ddp.call('public-settings/get');
-				await socket.ddp.call('permissions/get');
+	switch (type) {
+		case 'web':
+			await socket.ddp.call('public-settings/get');
+			await socket.ddp.call('permissions/get');
 
-				// this is done to simulate web client
-				await client.subscribe('meteor.loginServiceConfiguration');
-				await client.subscribe('meteor_autoupdate_clientVersions');
+			// this is done to simulate web client
+			await client.subscribe('meteor.loginServiceConfiguration');
+			await client.subscribe('meteor_autoupdate_clientVersions');
 
-				// await client.subscribeNotifyAll();
-				await Promise.all([
-					'updateEmojiCustom',
-					'deleteEmojiCustom',
-					'public-settings-changed'
-				].map(event => client.subscribe('stream-notify-all', event, false)));
-				break;
+			// await client.subscribeNotifyAll();
+			await Promise.all([
+				'updateEmojiCustom',
+				'deleteEmojiCustom',
+				'public-settings-changed'
+			].map(event => client.subscribe('stream-notify-all', event, false)));
+			break;
 
-			case 'android':
-			case 'ios':
-				await Promise.all([
-					client.get('settings.public'),
-					client.get('settings.oauth'),
-				]);
-				break;
-		}
+		case 'android':
+		case 'ios':
+			await Promise.all([
+				client.get('settings.public'),
+				client.get('settings.oauth'),
+			]);
+			break;
+	}
 
-		resolve();
-	});
+	const credentials = getCredentials(current);
+	await loginOrRegister(client, credentials, type, current);
 
 	return client;
 }
@@ -167,17 +166,6 @@ export async function login(client, credentials, type, userCount) {
 					'rooms-changed',
 					'subscriptions-changed'
 				].map(event => client.subscribe('stream-notify-user', `${user.id}/${event}`, false)));
-
-				if (!NO_SUBSCRIBE) {
-					await client.subscribeUserData();
-				} else if (NO_SUBSCRIBE === 'no-active') {
-					await Promise.all([
-						'roles',
-						'webdavAccounts',
-						'userData',
-						// 'activeUsers'
-					].map(stream => client.subscribe(stream, '')));
-				}
 				break;
 
 			case 'android':
@@ -327,22 +315,19 @@ export async function openRoom(client, rid, type, roomType = 'groups') {
 }
 
 export const loginOrRegister = async (client, credentials, type, userCount) => {
+	if (tryRegister) {
+		await register(client, credentials, type);
+	}
+
 	try {
-		await login(client, credentials, type, userCount);
-	} catch (e) {
-		console.log('error', e);
-		if (!tryRegister) {
+		if (!['yes', 'true'].includes(LOG_IN)) {
 			return;
 		}
-		try {
-			await register(client, credentials, type);
-
-			await login(client, credentials, type, userCount);
-		} catch (e) {
-			console.error('could not login/register for', credentials, e);
-		}
+		await login(client, credentials, type, userCount);
+	} catch (e) {
+		console.error('could not login/register for', credentials, e);
 	}
-}
+};
 
 export const doLoginBatch = async (current, total, step = 10, type) => {
 	let currentClient = 0;
