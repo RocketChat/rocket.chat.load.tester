@@ -14,5 +14,5 @@ scrape_configs:
   - job_name: 'load-tester'
     static_configs:
       - targets:
-        - localhost:3000
+        - load-scale:3000
 
