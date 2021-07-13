@@ -302,7 +302,8 @@ export async function openRoom(client, rid, type, roomType = 'groups') {
 		await Promise.all(calls);
 
 		if (type === 'web') {
-			await socket.ddp.call('readMessages', rid);
+			// await socket.ddp.call('readMessages', rid);
+			await client.post('method.call/readMessages', { message: "{\"msg\":\"method\",\"method\":\"readMessages\",\"params\":[\"" + rid + "\"],\"id\":\"" + Date.now() + "\"}" });
 		} else if (type === 'android' || type === 'ios') {
 			await client.post('subscriptions.read', { rid });
 		}
