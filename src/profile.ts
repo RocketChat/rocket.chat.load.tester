@@ -27,7 +27,7 @@ export default () => {
       });
 
       await client.connect();
-      const db = client.db('rocketchat');
+      const db = client.db(config.DATABASE_NAME);
 
       const users = db.collection('users');
 

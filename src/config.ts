@@ -21,6 +21,7 @@ const {
   USER_ID = 'uid-__prefix__-__count__',
   TASK_ID,
   DATABASE_URL = '', // 'mongodb://localhost:27017';
+  DATABASE_NAME = 'rocketchat',
   MESSAGES_PER_SECOND = '20',
   MESSAGE_SENDING_RATE, // ='0.001428571,
   CLUSTER_GROUP = 'loadtester',
@@ -33,6 +34,7 @@ export const config = {
   USERS_PER_ROOM,
   USERS_USERNAME,
   DATABASE_URL,
+  DATABASE_NAME,
   USERS_PASSWORD,
   USERS_EMAIL,
   LOGIN_BATCH,
