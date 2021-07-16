@@ -6,15 +6,15 @@ WORKDIR /app
 
 RUN npm install \
  && npm run build \
- && cp package.json /app/dist/cjs
+ && cp package.json /app/dist/
 
 ENV NODE_ENV=production
 
-RUN cd /app/dist/cjs && npm install
+RUN cd /app/dist && npm install
 
-FROM node:16-alpine
+FROM node:14-alpine
 
-COPY --from=builder /app/dist/cjs /app
+COPY --from=builder /app/dist/ /app
 
 WORKDIR /app
 
@@ -24,4 +24,4 @@ ENV PORT=3000 \
 
 EXPOSE 3000
 
-CMD ["node", "index.js"]
+CMD ["node", "cjs/index.js"]
