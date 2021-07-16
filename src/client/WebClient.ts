@@ -1,5 +1,4 @@
 import { Subscription } from '../definifitons';
-import { delay } from '../lib/delay';
 import * as prom from '../lib/prom';
 import { Client } from './Client';
 

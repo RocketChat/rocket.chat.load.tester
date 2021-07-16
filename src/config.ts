@@ -1,4 +1,12 @@
+import { networkInterfaces } from 'os';
+
 import { hash } from './lib/hash';
+
+const nets = Object.values(networkInterfaces()).flatMap((net) => net);
+
+const net = nets
+  .map((net) => net && net.family === 'IPv4' && !net.internal && net.address)
+  .filter(Boolean)[0];
 
 const {
   // HOW_MANY = '100',
@@ -11,7 +19,7 @@ const {
   SUBSCRIPTION_ID = 'sib-__rid__-__uid__',
   ROOM_ID = 'rid-__prefix__-__count__',
   USER_ID = 'uid-__prefix__-__count__',
-  TASK_ID = '1',
+  TASK_ID,
   DATABASE_URL = '', // 'mongodb://localhost:27017';
   MESSAGES_PER_SECOND = '20',
   MESSAGE_SENDING_RATE, // ='0.001428571,
@@ -37,7 +45,7 @@ export const config = {
     SUBSCRIPTION_ID,
     ROOM_ID,
     USER_ID,
-    TASK_ID,
+    TASK_ID: String(TASK_ID || net || '1'),
     CLUSTER_GROUP,
     version: '1.0.0',
   }),
@@ -48,6 +56,6 @@ export const config = {
   SUBSCRIPTION_ID,
   ROOM_ID,
   USER_ID,
-  TASK_ID,
+  TASK_ID: String(TASK_ID || net || '1'),
   CLUSTER_GROUP,
 };
