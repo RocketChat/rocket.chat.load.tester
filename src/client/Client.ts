@@ -313,12 +313,8 @@ export class Client {
       await this.client.sendMessage(msg, rid);
       end({ status: 'success' });
     } catch (e) {
-      console.error(
-        'error sending message',
-        { uid: this.client.userId, rid },
-        e
-      );
       end({ status: 'error' });
+      throw e;
     }
 
     await this.typing(rid, false);

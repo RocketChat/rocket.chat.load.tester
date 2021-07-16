@@ -16,6 +16,7 @@ const {
   MESSAGES_PER_SECOND = '20',
   MESSAGE_SENDING_RATE, // ='0.001428571,
   CLUSTER_GROUP = 'loadtester',
+  MESSAGE = 'hello',
 } = process.env;
 
 export const config = {
@@ -40,6 +41,7 @@ export const config = {
     CLUSTER_GROUP,
     version: '1.0.0',
   }),
+  MESSAGE,
   MESSAGES_PER_SECOND: MESSAGE_SENDING_RATE
     ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(MESSAGE_SENDING_RATE))
     : parseInt(MESSAGES_PER_SECOND),

@@ -90,7 +90,7 @@ export default () => {
       ];
 
     try {
-      await getClient(clients).sendMessage(`hello`, subscription.rid);
+      await client.sendMessage(config.MESSAGE, subscription.rid);
     } catch (error) {
       progress.updateTask(Task2, {
         message: `${String(++errors)} errors`,
