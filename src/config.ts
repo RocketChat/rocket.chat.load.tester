@@ -10,7 +10,7 @@ const net = nets
 
 const {
   // HOW_MANY = '100',
-  HOW_MANY_USERS = '100',
+  HOW_MANY_USERS = '500',
   USERS_PER_ROOM = '10',
   LOGIN_BATCH = '10',
   USERS_USERNAME = 'tester-%s',
