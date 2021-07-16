@@ -16,6 +16,11 @@ export type Room = {
   _updatedAt: Date;
 };
 
+export type Subscription = {
+  _id: string;
+  rid: string;
+};
+
 export type User = {
   _id: string;
   username: string;

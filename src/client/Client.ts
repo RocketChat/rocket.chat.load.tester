@@ -1,5 +1,6 @@
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 
+import { Subscription } from '../definifitons';
 import { delay } from '../lib/delay';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
@@ -24,6 +25,8 @@ const useSsl =
 export type ClientType = 'web' | 'android' | 'ios';
 export class Client {
   host: string;
+
+  subscriptions: Subscription[] = [];
 
   type: ClientType;
 
@@ -56,26 +59,6 @@ export class Client {
     prom.connected.inc();
 
     switch (this.type) {
-      case 'web':
-        await this.client.methodCall('public-settings/get');
-        await this.client.methodCall('permissions/get');
-
-        // this is done to simulate web client
-        await this.client.subscribe('meteor.loginServiceConfiguration');
-        await this.client.subscribe('meteor_autoupdate_clientVersions');
-
-        // await client.subscribeNotifyAll();
-        await Promise.all(
-          [
-            'updateEmojiCustom',
-            'deleteEmojiCustom',
-            'public-settings-changed',
-          ].map((event) =>
-            this.client.subscribe('stream-notify-all', event, false)
-          )
-        );
-        break;
-
       case 'android':
       case 'ios':
         await Promise.all([
@@ -322,7 +305,7 @@ export class Client {
     return subs;
   };
 
-  async sendMessage(rid: string, msg: string): Promise<void> {
+  async sendMessage(msg: string, rid: string): Promise<void> {
     await this.typing(rid, true);
     await delay(1000);
     const end = prom.messages.startTimer();

@@ -60,7 +60,7 @@ export default () => {
     }
 
     async setup() {
-      clients = await getClients(parseInt(config.HOW_MANY_USERS));
+      clients = await getClients(config.HOW_MANY_USERS);
       // if (config.JOIN_ROOM) {
       await joinRooms(clients);
       // }
@@ -70,19 +70,32 @@ export default () => {
     }
   })({
     // logout: 0.1,
-    message: 2,
+    message: config.MESSAGES_PER_SECOND,
   });
 
   const getClient = (clients: Client[]) =>
     clients[Math.floor(Math.random() * clients.length)];
 
+  const Task2 = 'Sending Messages';
   b.on('ready', async () => {
-    const Task2 = 'Sending Messages';
     progress.addTask(Task2, { type: 'indefinite' });
   });
 
-  b.on('message', () => {
-    getClient(clients).sendMessage('GENERAL', `hello`);
+  let errors = 0;
+  b.on('message', async () => {
+    const client = getClient(clients);
+    const subscription =
+      client.subscriptions[
+        Math.floor(Math.random() * client.subscriptions.length)
+      ];
+
+    try {
+      await getClient(clients).sendMessage(`hello`, subscription.rid);
+    } catch (error) {
+      progress.updateTask(Task2, {
+        message: `${String(++errors)} errors`,
+      });
+    }
   });
   // b.on('error', (e) => {
   //   console.log(e);

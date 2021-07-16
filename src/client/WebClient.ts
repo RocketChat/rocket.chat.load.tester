@@ -1,3 +1,4 @@
+import { Subscription } from '../definifitons';
 import { delay } from '../lib/delay';
 import * as prom from '../lib/prom';
 import { Client } from './Client';
@@ -72,11 +73,13 @@ export class WebClient extends Client {
         )
       );
 
-      await Promise.all(
+      const [subscriptions] = await Promise.all(
         this.getLoginMethods().map((params) =>
           this.client.methodCall(...params)
         )
       );
+
+      this.subscriptions = subscriptions as unknown as Subscription[];
 
       // this.loggedInInternal = true;
       // this.userCount = userCount;
@@ -91,10 +94,10 @@ export class WebClient extends Client {
 
   protected getLoginMethods(): [string, string?][] {
     const methods: [string, string?][] = [];
+    methods.push(['subscriptions/get']);
     methods.push(['listCustomSounds']);
     methods.push(['listEmojiCustom']);
     methods.push(['getUserRoles']);
-    methods.push(['subscriptions/get']);
     methods.push(['rooms/get']);
     methods.push(['apps/is-enabled']);
     methods.push(['loadLocale', 'pt-BR']);
@@ -183,25 +186,6 @@ export class WebClient extends Client {
 
     return subs;
   };
-
-  async sendMessage(rid: string, msg: string): Promise<void> {
-    await this.typing(rid, true);
-    await delay(1000);
-    const end = prom.messages.startTimer();
-    try {
-      await this.client.sendMessage(msg, rid);
-      end({ status: 'success' });
-    } catch (e) {
-      console.error(
-        'error sending message',
-        { uid: this.client.userId, rid },
-        e
-      );
-      end({ status: 'error' });
-    }
-
-    await this.typing(rid, false);
-  }
 
   async typing(rid: string, typing: boolean): Promise<void> {
     this.client.methodCall(

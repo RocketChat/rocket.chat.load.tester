@@ -65,9 +65,9 @@ function createRoom(i: number, usersPerRoom: number, prefix: string): Room {
   };
 }
 
-function createSubscription(room: Room, user: User) {
+function createSubscription(room: Room, { _id, username }: User) {
   return {
-    _id: subscriptionId(room, user),
+    _id: subscriptionId(room, { _id }),
     rid: room._id,
     name: room.name,
     fname: room.fname,
@@ -78,7 +78,7 @@ function createSubscription(room: Room, user: User) {
     groupMentions: 0,
     ts: today,
     t: 'p',
-    u: user,
+    u: { _id, username },
     _updatedAt: today,
     ls: today,
   };
@@ -120,7 +120,7 @@ export default async () => {
   const { HOW_MANY_USERS, USERS_PER_ROOM, hash } = config;
 
   const { rooms, users, subscriptions } = await produceRooms(
-    Math.ceil(parseInt(HOW_MANY_USERS) / parseInt(USERS_PER_ROOM)),
+    Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
     parseInt(USERS_PER_ROOM),
     hash
   );

@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { Room, User } from '../definifitons';
 
-export const subscriptionId = (room: Room, user: User): string =>
+export const subscriptionId = (room: Room, user: Pick<User, '_id'>): string =>
   config.SUBSCRIPTION_ID.replace('__rid__', room._id).replace(
     '__uid__',
     user._id

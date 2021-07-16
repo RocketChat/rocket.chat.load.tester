@@ -13,7 +13,8 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "typeRoots": ["./types"],
-    "downlevelIteration": true
+    "downlevelIteration": true,
+    "types": ["node"]
   },
   "files": ["./src/index.ts", "./types/index.d.ts"],
   "ts-node": {
