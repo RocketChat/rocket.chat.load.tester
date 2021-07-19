@@ -84,11 +84,18 @@ export default () => {
   let errors = 0;
   b.on('message', async () => {
     const client = getClient(clients);
-    const subscription =
-      client.subscriptions[
-        Math.floor(Math.random() * client.subscriptions.length)
-      ];
+    const subscriptions = client.subscriptions.filter(
+      (sub) =>
+        config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
+        config.IGNORE_ROOMS.indexOf(sub.name) === -1
+    );
 
+    const subscription =
+      subscriptions[Math.floor(Math.random() * subscriptions.length)];
+
+    if (!subscription) {
+      return;
+    }
     try {
       await client.sendMessage(config.MESSAGE, subscription.rid);
     } catch (error) {

@@ -10,6 +10,7 @@ const net = nets
 
 const {
   // HOW_MANY = '100',
+  IGNORE_ROOMS = 'GENERAL',
   HOW_MANY_USERS = '500',
   USERS_PER_ROOM = '10',
   LOGIN_BATCH = '10',
@@ -60,4 +61,5 @@ export const config = {
   USER_ID,
   TASK_ID: String(TASK_ID || net || '1'),
   CLUSTER_GROUP,
+  IGNORE_ROOMS: IGNORE_ROOMS.split(','),
 };

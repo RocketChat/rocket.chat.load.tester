@@ -19,6 +19,7 @@ export type Room = {
 export type Subscription = {
   _id: string;
   rid: string;
+  name: string;
 };
 
 export type User = {
