@@ -66,9 +66,6 @@ export const config = {
     version: '1.0.0',
   }),
   MESSAGE,
-  MESSAGES_PER_SECOND: MESSAGE_SENDING_RATE
-    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(MESSAGE_SENDING_RATE))
-    : parseInt(MESSAGES_PER_SECOND),
   SUBSCRIPTION_ID,
   ROOM_ID,
   USER_ID,
@@ -76,19 +73,23 @@ export const config = {
   CLUSTER_GROUP,
   IGNORE_ROOMS: IGNORE_ROOMS.split(','),
 
+  MESSAGES_PER_SECOND: MESSAGE_SENDING_RATE
+    ? parseInt(HOW_MANY_USERS) * parseFloat(MESSAGE_SENDING_RATE)
+    : parseInt(MESSAGES_PER_SECOND),
+
   SET_STATUS_PER_SECOND: SET_STATUS_RATE
-    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(SET_STATUS_RATE))
+    ? parseInt(HOW_MANY_USERS) * parseFloat(SET_STATUS_RATE)
     : parseInt(SET_STATUS_PER_SECOND),
 
   REGISTER_PER_SECOND: REGISTER_RATE
-    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(REGISTER_RATE))
+    ? parseInt(HOW_MANY_USERS) * parseFloat(REGISTER_RATE)
     : parseInt(REGISTER_PER_SECOND),
 
   OPEN_ROOM_PER_SECOND: OPEN_ROOM_RATE
-    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(OPEN_ROOM_RATE))
+    ? parseInt(HOW_MANY_USERS) * parseFloat(OPEN_ROOM_RATE)
     : parseInt(OPEN_ROOM_PER_SECOND),
 
   READ_MESSAGE_PER_SECOND: READ_MESSAGE_RATE
-    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE))
+    ? parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE)
     : parseInt(READ_MESSAGE_PER_SECOND),
 };
