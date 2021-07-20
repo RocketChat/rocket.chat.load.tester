@@ -23,8 +23,21 @@ const {
   TASK_ID,
   DATABASE_URL = '', // 'mongodb://localhost:27017';
   DATABASE_NAME = 'rocketchat',
-  MESSAGES_PER_SECOND = '20',
-  MESSAGE_SENDING_RATE, // ='0.001428571,
+  MESSAGES_PER_SECOND = '10',
+  MESSAGE_SENDING_RATE = '0.00115428571', // ='0.001428571,
+
+  SET_STATUS_PER_SECOND = '0',
+  SET_STATUS_RATE = '0.000115428571',
+
+  REGISTER_PER_SECOND = '0',
+  REGISTER_RATE = '0.000115428571',
+
+  OPEN_ROOM_PER_SECOND = '0',
+  OPEN_ROOM_RATE = '0.000115428571',
+
+  READ_MESSAGE_PER_SECOND = '0',
+  READ_MESSAGE_RATE = '0.000115428571',
+
   CLUSTER_GROUP = 'loadtester',
   MESSAGE = 'hello',
 } = process.env;
@@ -62,4 +75,20 @@ export const config = {
   TASK_ID: String(TASK_ID || net || '1'),
   CLUSTER_GROUP,
   IGNORE_ROOMS: IGNORE_ROOMS.split(','),
+
+  SET_STATUS_PER_SECOND: SET_STATUS_RATE
+    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(SET_STATUS_RATE))
+    : parseInt(SET_STATUS_PER_SECOND),
+
+  REGISTER_PER_SECOND: REGISTER_RATE
+    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(REGISTER_RATE))
+    : parseInt(REGISTER_PER_SECOND),
+
+  OPEN_ROOM_PER_SECOND: OPEN_ROOM_RATE
+    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(OPEN_ROOM_RATE))
+    : parseInt(OPEN_ROOM_PER_SECOND),
+
+  READ_MESSAGE_PER_SECOND: READ_MESSAGE_RATE
+    ? Math.ceil(parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE))
+    : parseInt(READ_MESSAGE_PER_SECOND),
 };

@@ -3,9 +3,10 @@ import { MongoClient } from 'mongodb';
 import { BenchmarkRunner } from './BenchmarkRunner';
 import { Client } from './client/Client';
 import { config } from './config';
+import { rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 import { joinRooms } from './macros/joinRooms';
-import { openRooms } from './macros/openRooms';
+// import { openRooms } from './macros/openRooms';
 import populate from './populate';
 import { progress, snapshot } from './progress';
 
@@ -65,16 +66,15 @@ export default () => {
       await joinRooms(clients);
       // }
       // if (['yes', 'true'].includes(config.OPEN_ROOM)) {
-      await openRooms(clients);
+      // await openRooms(clients);
       // }
     }
   })({
-    // logout: 0.1,
     message: config.MESSAGES_PER_SECOND,
+    readMessages: config.READ_MESSAGE_PER_SECOND,
+    openRoom: config.OPEN_ROOM_PER_SECOND,
+    setUserStatus: config.SET_STATUS_PER_SECOND,
   });
-
-  const getClient = (clients: Client[]) =>
-    clients[Math.floor(Math.random() * clients.length)];
 
   const Task2 = 'Sending Messages';
   b.on('ready', async () => {
@@ -83,15 +83,8 @@ export default () => {
 
   let errors = 0;
   b.on('message', async () => {
-    const client = getClient(clients);
-    const subscriptions = client.subscriptions.filter(
-      (sub) =>
-        config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
-        config.IGNORE_ROOMS.indexOf(sub.name) === -1
-    );
-
-    const subscription =
-      subscriptions[Math.floor(Math.random() * subscriptions.length)];
+    const client = rand(clients);
+    const subscription = client.getSubscription();
 
     if (!subscription) {
       return;
@@ -104,9 +97,29 @@ export default () => {
       });
     }
   });
-  // b.on('error', (e) => {
-  //   console.log(e);
-  // });
+
+  b.on('setUserStatus', () => {
+    const client = rand(clients);
+    client.setStatus();
+  });
+
+  b.on('readMessages', () => {
+    const client = rand(clients);
+    const subscription = client.getSubscription();
+    if (!subscription) {
+      return;
+    }
+    client.read(subscription.rid);
+  });
+
+  b.on('openRoom', () => {
+    const client = rand(clients);
+    const subscription = client.getSubscription();
+    if (!subscription) {
+      return;
+    }
+    client.openRoom(subscription.rid);
+  });
 
   b.run();
 };

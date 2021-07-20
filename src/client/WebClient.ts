@@ -27,7 +27,6 @@ export class WebClient extends Client {
     await this.beforeLogin();
 
     const end = prom.login.startTimer();
-
     const { credentials } = this;
     try {
       const user = await this.client.login(credentials);
@@ -207,11 +206,9 @@ export class WebClient extends Client {
 
       await Promise.all(calls);
 
-      if (this.type === 'web') {
-        // await this.client.methodCall('readMessages', rid);
-      } else if (this.type === 'android' || this.type === 'ios') {
-        await this.client.post('subscriptions.read', { rid });
-      }
+      await this.read(rid);
+
+      await this.client.post('subscriptions.read', { rid });
 
       end({ status: 'success' });
     } catch (e) {

@@ -1,9 +1,11 @@
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 
+import { config } from '../config';
 import { Subscription } from '../definifitons';
 import { delay } from '../lib/delay';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
+import { rand } from '../lib/rand';
 
 const logger = {
   debug: (...args: any) => true || console.log(args),
@@ -103,6 +105,15 @@ export class Client {
       console.error('error joining room', { uid: this.client.userId, rid }, e);
       end({ status: 'error' });
     }
+  }
+
+  setStatus(): Promise<void> {
+    const status = rand(['online', 'away', 'offline', 'busy']);
+    return this.client.post('users.setStatus', { status });
+  }
+
+  read(rid: string): Promise<void> {
+    return this.client.post('subscriptions.read', { rid });
   }
 
   async login(): Promise<void> {
@@ -335,13 +346,6 @@ export class Client {
       const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
 
       switch (this.type) {
-        case 'web':
-          calls.push(this.client.methodCall('getRoomRoles', rid));
-          calls.push(
-            this.client.methodCall('loadHistory', rid, null, 50, new Date())
-          );
-          break;
-
         case 'android':
         case 'ios':
           calls.push(this.client.get('commands.list'));
@@ -353,17 +357,22 @@ export class Client {
 
       await Promise.all(calls);
 
-      if (this.type === 'web') {
-        // await this.client.methodCall('readMessages', rid);
-      } else if (this.type === 'android' || this.type === 'ios') {
-        await this.client.post('subscriptions.read', { rid });
-      }
+      await this.client.post('subscriptions.read', { rid });
 
       end({ status: 'success' });
     } catch (e) {
       console.error('error open room', { uid: this.client.userId, rid }, e);
       end({ status: 'error' });
     }
+  }
+
+  getSubscription(): Subscription {
+    const subscriptions = this.subscriptions.filter(
+      (sub) =>
+        config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
+        config.IGNORE_ROOMS.indexOf(sub.name) === -1
+    );
+    return rand(subscriptions);
   }
 
   async subscribeRoom(rid: string): Promise<void> {

@@ -8,7 +8,18 @@ type EventKeys =
   | 'subscription'
   | 'typing'
   | 'all'
-  | 'here';
+  | 'here'
+  | 'public-settings/get'
+  | 'rooms/get'
+  | 'spotlight'
+  | 'loadMissedMessages'
+  | 'rooms/get'
+  | 'canAccessRoom'
+  | 'getRoomRoles'
+  | 'loadHistory'
+  | 'setUserStatus'
+  | 'readMessages'
+  | 'openRoom';
 
 const eventsPerSecond = (events: number): number => Math.ceil(1000 / events);
 
@@ -39,6 +50,9 @@ export abstract class BenchmarkRunner extends Emitter<
 
   private turnOnTimers(): void {
     for (const [event, rate] of this.eventsRate) {
+      if (!rate) {
+        continue;
+      }
       setInterval(() => {
         this.emit(event, undefined);
       }, eventsPerSecond(rate));
