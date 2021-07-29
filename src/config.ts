@@ -38,6 +38,9 @@ const {
   READ_MESSAGE_PER_SECOND = '0',
   READ_MESSAGE_RATE = '0.000115428571',
 
+  LOGIN_PER_SECOND = '0',
+  LOGIN_RATE = '0.000115428571',
+
   CLUSTER_GROUP = 'loadtester',
   MESSAGE = 'hello',
 } = process.env;
@@ -92,4 +95,8 @@ export const config = {
   READ_MESSAGE_PER_SECOND: READ_MESSAGE_RATE
     ? parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE)
     : parseInt(READ_MESSAGE_PER_SECOND),
+
+  LOGIN_PER_SECOND: LOGIN_RATE
+    ? parseInt(HOW_MANY_USERS) * parseFloat(LOGIN_RATE)
+    : parseInt(LOGIN_PER_SECOND),
 };

@@ -2,6 +2,7 @@ import PromisePool from '@supercharge/promise-pool';
 
 import { Client } from '../client/Client';
 import { ClientBase } from '../client/ClientBase';
+import { WebClient } from '../client/WebClient';
 import { config } from '../config';
 
 const {
@@ -13,7 +14,7 @@ const {
   // MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
-export const getClients = async (size: number): Promise<Client[]> => {
+export const getClients = async (size: number): Promise<(Client | WebClient)[]> => {
   const users = Array.from({ length: size }).map((_, i) => i);
 
   console.log('Logging in', size, 'users');
@@ -31,7 +32,7 @@ export const getClients = async (size: number): Promise<Client[]> => {
           index as number
         );
 
-        await client.login();
+        // await client.login();
 
         return client;
       } catch (error) {
