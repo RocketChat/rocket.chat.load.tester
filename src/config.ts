@@ -51,7 +51,7 @@ export const config = {
   DATABASE_NAME,
   USERS_PASSWORD,
   USERS_EMAIL,
-  LOGIN_BATCH,
+  LOGIN_BATCH: parseInt(LOGIN_BATCH),
   hash: hash({
     HOW_MANY_USERS,
     USERS_PER_ROOM,

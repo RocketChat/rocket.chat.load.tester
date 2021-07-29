@@ -18,9 +18,7 @@ export const getClients = async (size: number): Promise<Client[]> => {
 
   console.log('Logging in', size, 'users');
 
-  const { results } = await PromisePool.withConcurrency(
-    parseInt(config.LOGIN_BATCH)
-  )
+  const { results } = await PromisePool.withConcurrency(config.LOGIN_BATCH)
     .for(users)
     .handleError((error) => {
       throw error;
@@ -37,7 +35,7 @@ export const getClients = async (size: number): Promise<Client[]> => {
 
         return client;
       } catch (error) {
-        console.error(error);
+        console.error('Error during log in', error);
         throw error;
       }
     });
