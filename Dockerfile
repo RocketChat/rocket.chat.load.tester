@@ -1,12 +1,12 @@
-FROM node:10 as builder
+FROM node:14 as builder
 
 ADD . /app
 
 WORKDIR /app
 
 RUN npm install \
- && npm run build \
- && cp package.json /app/dist/
+    && npm run build \
+    && cp package.json /app/dist/
 
 ENV NODE_ENV=production
 
