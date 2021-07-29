@@ -3,7 +3,6 @@ import PromisePool from '@supercharge/promise-pool';
 import { Client } from '../client/Client';
 import { ClientBase } from '../client/ClientBase';
 import { config } from '../config';
-import { progress, addTask } from '../progress';
 
 const {
   CLIENT_TYPE = 'web',
@@ -14,10 +13,11 @@ const {
   // MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
-const login = addTask('Login', progress);
-
 export const getClients = async (size: number): Promise<Client[]> => {
   const users = Array.from({ length: size }).map((_, i) => i);
+
+  console.log('Logging in', size, 'users');
+
   const { results } = await PromisePool.withConcurrency(
     parseInt(config.LOGIN_BATCH)
   )
@@ -34,9 +34,6 @@ export const getClients = async (size: number): Promise<Client[]> => {
         );
 
         await client.login();
-        login.incrementTask({
-          percentage: 1 / users.length,
-        });
 
         return client;
       } catch (error) {

@@ -8,7 +8,6 @@ import { getClients } from './macros/getClients';
 import { joinRooms } from './macros/joinRooms';
 // import { openRooms } from './macros/openRooms';
 import populate from './populate';
-import { progress, snapshot } from './progress';
 
 export default () => {
   let clients: Client[];
@@ -16,48 +15,44 @@ export default () => {
   const b = new (class extends BenchmarkRunner {
     async populate() {
       if (!config.DATABASE_URL) {
-        return snapshot.done({
-          message: 'Task skipped no DATABASE_URL',
-        });
-      }
-      snapshot.incrementTask({
-        message: 'Connecting to the database',
-      });
-      const client = await MongoClient.connect(config.DATABASE_URL, {
-        tlsInsecure: true,
-      });
-
-      await client.connect();
-      const db = client.db(config.DATABASE_NAME);
-
-      const users = db.collection('users');
-
-      snapshot.incrementTask({
-        message: 'Checking if the hash already exists',
-      });
-
-      if (await users.findOne({ _id: new RegExp(config.hash) })) {
-        snapshot.done({
-          message: 'Task skipped',
-        });
+        console.log('Skip populate, no DATABASE_URL');
         return;
       }
 
-      const results = await populate();
+      console.log('Start populate DB');
 
-      snapshot.incrementTask({
-        message: `Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`,
-      });
+      const client = new MongoClient(config.DATABASE_URL);
 
-      const subscriptions = db.collection('rocketchat_subscription');
-      const rooms = db.collection('rocketchat_room');
+      try {
+        await client.connect();
+        const db = client.db(config.DATABASE_NAME);
 
-      await Promise.all([
-        subscriptions.insertMany(results.subscriptions),
-        rooms.insertMany(results.rooms),
-        users.insertMany(results.users),
-      ]);
-      snapshot.done({});
+        const users = db.collection('users');
+
+        console.log('Checking if the hash already exists');
+
+        if (await users.findOne({ _id: new RegExp(config.hash) })) {
+          console.log('Task skipped');
+          return;
+        }
+
+        const results = await populate();
+
+        console.log(`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`);
+
+        const subscriptions = db.collection('rocketchat_subscription');
+        const rooms = db.collection('rocketchat_room');
+
+        await Promise.all([
+          subscriptions.insertMany(results.subscriptions),
+          rooms.insertMany(results.rooms),
+          users.insertMany(results.users),
+        ]);
+
+        console.log('Done populating DB');
+      } finally {
+        await client.close();
+      }
     }
 
     async setup() {
@@ -76,9 +71,8 @@ export default () => {
     setUserStatus: config.SET_STATUS_PER_SECOND,
   });
 
-  const Task2 = 'Sending Messages';
   b.on('ready', async () => {
-    progress.addTask(Task2, { type: 'indefinite' });
+    console.log('Starting sending messages');
   });
 
   let errors = 0;
@@ -92,9 +86,7 @@ export default () => {
     try {
       await client.sendMessage(config.MESSAGE, subscription.rid);
     } catch (error) {
-      progress.updateTask(Task2, {
-        message: `${String(++errors)} errors`,
-      });
+      console.error('Error sending message', error);
     }
   });
 
