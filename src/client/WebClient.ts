@@ -208,8 +208,6 @@ export class WebClient extends Client {
 
       await this.read(rid);
 
-      await this.client.post('subscriptions.read', { rid });
-
       end({ status: 'success' });
     } catch (e) {
       console.error('error open room', { uid: this.client.userId, rid }, e);
