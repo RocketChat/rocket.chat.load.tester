@@ -68,7 +68,7 @@ export default () => {
       }
 
       // if (config.JOIN_ROOM) {
-      await joinRooms(clients);
+      // await joinRooms(clients);
       // }
       // if (['yes', 'true'].includes(config.OPEN_ROOM)) {
       // await openRooms(clients);
