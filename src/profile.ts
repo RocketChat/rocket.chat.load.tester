@@ -13,12 +13,12 @@ export default () => {
   let clients: Client[];
 
   const b = new (class extends BenchmarkRunner {
-    private skipped = false;
+    private skippedPopulate = false;
 
     async populate() {
       if (!config.DATABASE_URL) {
         console.log('Skip populate, no DATABASE_URL');
-        this.skipped = true;
+        this.skippedPopulate = true;
         return;
       }
 
@@ -36,7 +36,7 @@ export default () => {
 
         if (await users.findOne({ _id: new RegExp(config.hash) })) {
           console.log('Task skipped');
-          this.skipped = true;
+          this.skippedPopulate = true;
           return;
         }
 
@@ -60,12 +60,13 @@ export default () => {
     }
 
     async setup() {
+      clients = await getClients(config.HOW_MANY_USERS);
+
       // if it didn't have to populate there is not need to join rooms, so skip
-      if (this.skipped) {
+      if (this.skippedPopulate) {
         return;
       }
 
-      const clients = await getClients(config.HOW_MANY_USERS);
       // if (config.JOIN_ROOM) {
       await joinRooms(clients);
       // }
