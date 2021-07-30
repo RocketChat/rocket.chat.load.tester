@@ -32,18 +32,18 @@ function normalizePort(val?: string | number) {
   return false;
 }
 
+const port = normalizePort(process.env.PORT || '3000');
+// app.set('port', port);
+
 /**
  * Event listener for HTTP server "listening" event.
  */
 
-function onListening(this: any) {
-  // const addr = (this as Koa).address();
+function onListening() {
+  // const addr = this.address();
   // const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
-  debug(`Listening on asda`);
+  debug(`Listening on port ${port}`);
 }
-
-const port = normalizePort(process.env.PORT || '3000');
-// app.set('port', port);
 
 /**
  * Create HTTP server.
