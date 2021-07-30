@@ -21,24 +21,24 @@ export const getClients = async (size: number): Promise<Client[]> => {
   const { results } = await PromisePool.withConcurrency(config.LOGIN_BATCH)
     .for(users)
     .handleError((error) => {
-      throw error;
+      console.error('Error during log in', error);
+      // throw error;
     })
     .process(async (index) => {
-      try {
-        const client = ClientBase.getClient(
-          HOST_URL,
-          CLIENT_TYPE as 'web' | 'android' | 'ios',
-          index as number
-        );
+      const client = ClientBase.getClient(
+        HOST_URL,
+        CLIENT_TYPE as 'web' | 'android' | 'ios',
+        index as number
+      );
 
-        await client.login();
+      await client.login();
 
-        return client;
-      } catch (error) {
-        console.error('Error during log in', error);
-        throw error;
-      }
+      return client;
     });
 
-  return results;
+  const clients = results.filter(Boolean);
+
+  console.log('Logged users total:', clients.length);
+
+  return clients;
 };
