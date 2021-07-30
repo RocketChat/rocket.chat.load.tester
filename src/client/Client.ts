@@ -98,12 +98,15 @@ export class Client {
 
   async joinRoom(rid = 'GENERAL'): Promise<void> {
     const end = prom.roomJoin.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'roomJoin' });
     try {
       await this.client.joinRoom({ rid });
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error('error joining room', { uid: this.client.userId, rid }, e);
       end({ status: 'error' });
+      endAction({ status: 'error' });
     }
   }
 
@@ -120,6 +123,7 @@ export class Client {
     await this.beforeLogin();
 
     const end = prom.login.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'login' });
     const { credentials } = this;
     try {
       const user = await this.client.login(credentials);
@@ -204,9 +208,11 @@ export class Client {
       // client.userCount = userCount;
 
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error('error during login', e, credentials);
       end({ status: 'error' });
+      endAction({ status: 'error' });
       throw e;
     }
   }
@@ -319,12 +325,15 @@ export class Client {
   async sendMessage(msg: string, rid: string): Promise<void> {
     await this.typing(rid, true);
     await delay(1000);
+    const endAction = prom.actions.startTimer({ action: 'sendMessage' });
     const end = prom.messages.startTimer();
     try {
       await this.client.sendMessage(msg, rid);
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       end({ status: 'error' });
+      endAction({ status: 'error' });
       throw e;
     }
 
@@ -341,6 +350,7 @@ export class Client {
   }
 
   async openRoom(rid = 'GENERAL', roomType = 'groups'): Promise<void> {
+    const endAction = prom.actions.startTimer({ action: 'openRoom' });
     const end = prom.openRoom.startTimer();
     try {
       const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
@@ -360,9 +370,11 @@ export class Client {
       await this.client.post('subscriptions.read', { rid });
 
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error('error open room', { uid: this.client.userId, rid }, e);
       end({ status: 'error' });
+      endAction({ status: 'error' });
     }
   }
 
@@ -377,6 +389,7 @@ export class Client {
 
   async subscribeRoom(rid: string): Promise<void> {
     const end = prom.roomSubscribe.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'roomSubscribe' });
     try {
       await this.client.subscribeRoom(rid);
 
@@ -388,6 +401,7 @@ export class Client {
       ]);
 
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error(
         'error subscribing room',
@@ -395,6 +409,7 @@ export class Client {
         e
       );
       end({ status: 'error' });
+      endAction({ status: 'error' });
     }
   }
 }

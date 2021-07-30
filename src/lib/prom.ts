@@ -40,6 +40,11 @@ export const openRoom = new client.Summary({
   help: 'Open room sction',
   labelNames: ['status'],
 });
+export const actions = new client.Summary({
+  name: 'rc_actions',
+  help: 'All performed actions',
+  labelNames: ['action', 'status'],
+});
 
 export default client;
 
