@@ -98,7 +98,7 @@ export class Client {
 
   async joinRoom(rid = 'GENERAL'): Promise<void> {
     const end = prom.roomJoin.startTimer();
-    const endAction = prom.actions.startTimer({ action: 'roomJoin' });
+    const endAction = prom.actions.startTimer({ action: 'joinRoom' });
     try {
       await this.client.joinRoom({ rid });
       end({ status: 'success' });
@@ -110,13 +110,26 @@ export class Client {
     }
   }
 
-  setStatus(): Promise<void> {
+  async setStatus(): Promise<void> {
     const status = rand(['online', 'away', 'offline', 'busy']);
-    return this.client.post('users.setStatus', { status });
+
+    const endAction = prom.actions.startTimer({ action: 'setStatus' });
+    try {
+      await this.client.post('users.setStatus', { status });
+      endAction({ status: 'success' });
+    } catch (e) {
+      endAction({ status: 'error' });
+    }
   }
 
-  read(rid: string): Promise<void> {
-    return this.client.post('subscriptions.read', { rid });
+  async read(rid: string): Promise<void> {
+    const endAction = prom.actions.startTimer({ action: 'read' });
+    try {
+      this.client.post('subscriptions.read', { rid });
+      endAction({ status: 'success' });
+    } catch (e) {
+      endAction({ status: 'error' });
+    }
   }
 
   async login(): Promise<void> {

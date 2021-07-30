@@ -27,6 +27,7 @@ export class WebClient extends Client {
     await this.beforeLogin();
 
     const end = prom.login.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'login' });
     const { credentials } = this;
     try {
       const user = await this.client.login(credentials);
@@ -83,9 +84,11 @@ export class WebClient extends Client {
       // this.userCount = userCount;
 
       end({ status: 'success' });
+      endAction({ action: 'login', status: 'success' });
     } catch (e) {
       console.error('error during login', e, credentials);
       end({ status: 'error' });
+      endAction({ action: 'login', status: 'error' });
       throw e;
     }
   }
@@ -196,27 +199,31 @@ export class WebClient extends Client {
 
   async openRoom(rid = 'GENERAL'): Promise<void> {
     const end = prom.openRoom.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'openRoom' });
     try {
       const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
 
-      calls.push(this.client.methodCall('getRoomRoles', rid));
       calls.push(
         this.client.methodCall('loadHistory', rid, null, 50, new Date())
       );
+      calls.push(this.client.methodCall('getRoomRoles', rid));
 
       await Promise.all(calls);
 
       await this.read(rid);
 
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error('error open room', { uid: this.client.userId, rid }, e);
       end({ status: 'error' });
+      endAction({ status: 'error' });
     }
   }
 
   async subscribeRoom(rid: string): Promise<void> {
     const end = prom.roomSubscribe.startTimer();
+    const endAction = prom.actions.startTimer({ action: 'subscribeRoom' });
     try {
       await this.client.subscribeRoom(rid);
 
@@ -225,9 +232,11 @@ export class WebClient extends Client {
         this.client.subscribe('stream-room-messages', rid),
         this.client.subscribe(topic, `${rid}/typing`),
         this.client.subscribe(topic, `${rid}/deleteMessage`),
+        this.client.subscribe(topic, `${rid}/deleteMessageBulk`),
       ]);
 
       end({ status: 'success' });
+      endAction({ status: 'success' });
     } catch (e) {
       console.error(
         'error subscribing room',
@@ -235,6 +244,7 @@ export class WebClient extends Client {
         e
       );
       end({ status: 'error' });
+      endAction({ status: 'error' });
     }
   }
 }
