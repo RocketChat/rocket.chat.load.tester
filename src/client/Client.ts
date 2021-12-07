@@ -17,7 +17,7 @@ const logger = {
 	},
 };
 
-const { SSL_ENABLED, LOG_IN = 'yes' } = process.env;
+const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
 
 const useSsl =
 	typeof SSL_ENABLED !== 'undefined'

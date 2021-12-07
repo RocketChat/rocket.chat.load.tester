@@ -8,7 +8,6 @@ const {
 	// USERS_USERNAME = 'tester-%s',
 	// USERS_PASSWORD = 'tester-%s',
 	// USERS_EMAIL = 'tester-%s@domain.com',
-	// HOST_URL = 'https://bench.rocket.chat',
 	// MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
