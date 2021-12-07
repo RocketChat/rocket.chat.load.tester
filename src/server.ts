@@ -17,19 +17,19 @@ const app = new Koa();
  */
 
 function normalizePort(val?: string | number) {
-  const port = typeof val === 'string' ? parseInt(val, 10) : val;
+	const port = typeof val === 'string' ? parseInt(val, 10) : val;
 
-  if (port && isNaN(port)) {
-    // named pipe
-    return val;
-  }
+	if (port && isNaN(port)) {
+		// named pipe
+		return val;
+	}
 
-  if (port) {
-    // port number
-    return port;
-  }
+	if (port) {
+		// port number
+		return port;
+	}
 
-  return false;
+	return false;
 }
 
 const port = normalizePort(process.env.PORT || '3000');
@@ -40,9 +40,9 @@ const port = normalizePort(process.env.PORT || '3000');
  */
 
 function onListening() {
-  // const addr = this.address();
-  // const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
-  debug(`Listening on port ${port}`);
+	// const addr = this.address();
+	// const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
+	debug(`Listening on port ${port}`);
 }
 
 /**
@@ -71,19 +71,19 @@ server.on('listening', onListening);
 
 // middlewares
 app.use(
-  bodyparser({
-    enableTypes: ['json', 'form', 'text'],
-  })
+	bodyparser({
+		enableTypes: ['json', 'form', 'text'],
+	})
 );
 app.use(json());
 // app.use(logger());
 
 // logger
 app.use(async (ctx, next) => {
-  const start = new Date();
-  await next();
-  const ms = new Date().getTime() - start.getTime();
-  console.log(`${ctx.method} ${ctx.url} - ${ms}ms`);
+	const start = new Date();
+	await next();
+	const ms = new Date().getTime() - start.getTime();
+	console.log(`${ctx.method} ${ctx.url} - ${ms}ms`);
 });
 
 // routes
@@ -92,7 +92,7 @@ app.use(metrics.routes()); // , metrics.allowedMethods());
 
 // error-handling
 app.on('error', (err, ctx) => {
-  console.error('server error', err, ctx);
+	console.error('server error', err, ctx);
 });
 
 export default app;
