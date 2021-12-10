@@ -2,22 +2,18 @@
   "name": "@rocket.chat/rocket-chat-load-tester",
   "version": "0.0.1",
   "description": "",
-  "author": {
-    "name": "Rocket.Chat",
-    "url": "https://rocket.chat/"
-  },
-  "homepage": "https://github.com/RocketChat/Rocket.Chat.Fuselage#readme",
+  "author": "Diego Sampaio <chinello@gmail.com>",
+  "homepage": "https://github.com/sampaiodiego/rocket.chat.load.tester",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RocketChat/Rocket.Chat.Fuselage.git",
-    "directory": "packages/rocket-chat-load-tester"
+    "url": "git+https://github.com/sampaiodiego/rocket.chat.load.tester.git"
   },
   "bugs": {
-    "url": "https://github.com/RocketChat/Rocket.Chat.Fuselage/issues"
+    "url": "https://github.com/sampaiodiego/rocket.chat.load.tester/issues"
   },
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
