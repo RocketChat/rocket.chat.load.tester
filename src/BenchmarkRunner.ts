@@ -19,7 +19,8 @@ type EventKeys =
 	| 'loadHistory'
 	| 'setUserStatus'
 	| 'readMessages'
-	| 'openRoom';
+	| 'openRoom'
+	| 'subscribePresence';
 
 const eventsPerSecond = (events: number): number => Math.ceil(1000 / events);
 
@@ -64,8 +65,11 @@ export abstract class BenchmarkRunner extends Emitter<
 	public async run(): Promise<void> {
 		try {
 			await this.populate();
+
 			this.emit('populate_ready');
+
 			await this.setup();
+
 			this.emit('ready');
 		} catch (error) {
 			this.emit('error', error);

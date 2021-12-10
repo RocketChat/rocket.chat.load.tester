@@ -3,12 +3,13 @@ import { MongoClient } from 'mongodb';
 import { BenchmarkRunner } from './BenchmarkRunner';
 import { Client } from './client/Client';
 import { config } from './config';
-import { rand } from './lib/rand';
+import { userId } from './lib/ids';
+import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 // import { joinRooms } from './macros/joinRooms';
 import populate from './populate';
 
-export default () => {
+export default (): void => {
 	let clients: Client[];
 
 	const b = new (class extends BenchmarkRunner {
@@ -76,6 +77,7 @@ export default () => {
 		readMessages: config.READ_MESSAGE_PER_SECOND,
 		openRoom: config.OPEN_ROOM_PER_SECOND,
 		setUserStatus: config.SET_STATUS_PER_SECOND,
+		subscribePresence: config.SUBSCRIBE_PRESENCE_PER_SECOND,
 	});
 
 	b.on('ready', async () => {
@@ -84,7 +86,7 @@ export default () => {
 
 	b.on('message', async () => {
 		const client = rand(clients);
-		const subscription = client.getSubscription();
+		const subscription = client.getRandomSubscription();
 
 		if (!subscription) {
 			return;
@@ -103,7 +105,7 @@ export default () => {
 
 	b.on('readMessages', () => {
 		const client = rand(clients);
-		const subscription = client.getSubscription();
+		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
 		}
@@ -112,11 +114,27 @@ export default () => {
 
 	b.on('openRoom', () => {
 		const client = rand(clients);
-		const subscription = client.getSubscription();
+		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
 		}
 		client.openRoom(subscription.rid);
+	});
+
+	b.on('subscribePresence', async () => {
+		const client = rand(clients);
+		const subscription = client.getRandomSubscription();
+		if (!subscription) {
+			return;
+		}
+
+		const newId = userId(getRandomInt(config.HOW_MANY_USERS));
+
+		const userIds = client.usersPresence.slice(1);
+
+		userIds.push(newId);
+
+		client.listenPresence(userIds);
 	});
 
 	b.run();

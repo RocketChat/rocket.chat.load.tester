@@ -34,6 +34,8 @@ export class Client {
 
 	current: number;
 
+	usersPresence: string[] = [];
+
 	defaultCredentials = {
 		username: 'loadtest%s',
 		password: 'pass%s',
@@ -143,41 +145,6 @@ export class Client {
 
 			// do one by one as doing three at same time was hanging
 			switch (this.type) {
-				case 'web':
-					// await client.subscribeLoggedNotify();
-					await Promise.all(
-						[
-							'Users:NameChanged',
-							'Users:Deleted',
-							'updateAvatar',
-							'updateEmojiCustom',
-							'deleteEmojiCustom',
-							'roles-change',
-							'permissions-changed',
-						].map((event) =>
-							this.client.subscribe('stream-notify-logged', event, false)
-						)
-					);
-
-					// await client.subscribeNotifyUser();
-					await Promise.all(
-						[
-							'message',
-							'otr',
-							'webrtc',
-							'notification',
-							'audioNotification',
-							'rooms-changed',
-							'subscriptions-changed',
-						].map((event) =>
-							this.client.subscribe(
-								'stream-notify-user',
-								`${user.id}/${event}`,
-								false
-							)
-						)
-					);
-					break;
 				case 'android':
 				case 'ios':
 					await Promise.all(
@@ -230,19 +197,12 @@ export class Client {
 		}
 	}
 
+	async listenPresence(_userIds: string[]): Promise<void> {
+		throw new Error('not implemented');
+	}
+
 	protected getLoginMethods(): [string, string?][] {
 		const methods: [string, string?][] = [];
-
-		if (this.type === 'web') {
-			methods.push(['listCustomSounds']);
-			methods.push(['listEmojiCustom']);
-			methods.push(['getUserRoles']);
-			methods.push(['subscriptions/get']);
-			methods.push(['rooms/get']);
-			methods.push(['apps/is-enabled']);
-			methods.push(['loadLocale', 'pt-BR']);
-			// methods.push(['autoTranslate.getSupportedLanguages', 'en']);
-		}
 
 		return methods;
 	}
@@ -253,84 +213,6 @@ export class Client {
 		{ useCollection: false; args: [] }
 	][] => {
 		const subs: [string, string, { useCollection: false; args: [] }][] = [];
-
-		if (this.type === 'web') {
-			subs.push([
-				'stream-notify-all',
-				'deleteCustomSound',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-notify-all',
-				'updateCustomSound',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-notify-all',
-				'public-settings-changed',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-notify-logged',
-				'user-status',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-notify-logged',
-				'permissions-changed',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-importers',
-				'progress',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'app/added',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'app/removed',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'app/updated',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'app/statusUpdate',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'app/settingUpdated',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'command/added',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'command/disabled',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'command/updated',
-				{ useCollection: false, args: [] },
-			]);
-			subs.push([
-				'stream-apps',
-				'command/removed',
-				{ useCollection: false, args: [] },
-			]);
-		}
 
 		return subs;
 	};
@@ -391,7 +273,7 @@ export class Client {
 		}
 	}
 
-	getSubscription(): Subscription {
+	getRandomSubscription(): Subscription {
 		const subscriptions = this.subscriptions.filter(
 			(sub) =>
 				config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&

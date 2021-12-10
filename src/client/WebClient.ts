@@ -1,5 +1,8 @@
+import { config } from '../config';
 import { Subscription } from '../definifitons';
+import { userId } from '../lib/ids';
 import * as prom from '../lib/prom';
+import { getRandomInt } from '../lib/rand';
 import { Client } from './Client';
 
 export class WebClient extends Client {
@@ -80,6 +83,14 @@ export class WebClient extends Client {
 
 			this.subscriptions = subscriptions as unknown as Subscription[];
 
+			await this.listenPresence([
+				...new Set(
+					Array.from({ length: 4 }, () =>
+						userId(getRandomInt(config.HOW_MANY_USERS))
+					)
+				),
+			]);
+
 			// this.loggedInInternal = true;
 			// this.userCount = userCount;
 
@@ -91,6 +102,25 @@ export class WebClient extends Client {
 			endAction({ action: 'login', status: 'error' });
 			throw e;
 		}
+	}
+
+	async listenPresence(userIds: string[]): Promise<void> {
+		const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
+		const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
+
+		await this.client.get(
+			`users.presence?ids[]=${newIds.join('&ids[]=')}&wtf=`
+		);
+
+		((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
+			'',
+			{
+				...(newIds && { added: newIds }),
+				...(removeIds && { removed: removeIds }),
+			},
+		]);
+
+		this.usersPresence = [...new Set(userIds)];
 	}
 
 	protected getLoginMethods(): [string, string?][] {
@@ -128,11 +158,11 @@ export class WebClient extends Client {
 			'public-settings-changed',
 			{ useCollection: false, args: [] },
 		]);
-		subs.push([
-			'stream-notify-logged',
-			'user-status',
-			{ useCollection: false, args: [] },
-		]);
+		// subs.push([
+		// 	'stream-notify-logged',
+		// 	'user-status',
+		// 	{ useCollection: false, args: [] },
+		// ]);
 		subs.push([
 			'stream-notify-logged',
 			'permissions-changed',
