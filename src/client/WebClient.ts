@@ -83,9 +83,11 @@ export class WebClient extends Client {
 
 			this.subscriptions = subscriptions as unknown as Subscription[];
 
+			const manySub = this.getManyPresences();
+
 			await this.listenPresence([
 				...new Set(
-					Array.from({ length: 4 }, () =>
+					Array.from({ length: manySub }, () =>
 						userId(getRandomInt(config.HOW_MANY_USERS))
 					)
 				),

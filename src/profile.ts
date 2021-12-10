@@ -128,11 +128,18 @@ export default (): void => {
 			return;
 		}
 
-		const newId = userId(getRandomInt(config.HOW_MANY_USERS));
+		// change half the subscriptions to presence
+		const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
 
-		const userIds = client.usersPresence.slice(1);
+		const newIds = [];
 
-		userIds.push(newId);
+		for (let i = 0; i < newSubs; i++) {
+			newIds.push(userId(getRandomInt(config.HOW_MANY_USERS)));
+		}
+
+		const userIds = client.usersPresence.slice(newSubs);
+
+		userIds.push(...newIds);
 
 		client.listenPresence(userIds);
 	});

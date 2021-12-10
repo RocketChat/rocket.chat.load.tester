@@ -75,7 +75,19 @@ export class Client {
 		// await loginOrRegister(client, credentials, type, current);
 	}
 
-	protected get credentials() {
+	getManyPresences(): number {
+		return Math.min(
+			config.HOW_MANY_USERS,
+			config.INITIAL_SUBSCRIBE_MIN,
+			config.HOW_MANY_USERS * config.INITIAL_SUBSCRIBE_RATIO
+		);
+	}
+
+	protected get credentials(): {
+		username: string;
+		password: string;
+		email: string;
+	} {
 		return {
 			username: username(this.current),
 			password: 'performance',
