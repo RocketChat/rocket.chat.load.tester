@@ -5,10 +5,6 @@ volumes:
   grafana_data: {}
 
 services:
-  # redis:
-  #   image: redis:6-alpine
-  #   restart: on-failure
-
   load-scale:
     build: .
     restart: unless-stopped
@@ -16,8 +12,8 @@ services:
       - prometheus
       - grafana
     environment:
-      - HOST_URL=${HOST_URL:-https://bench.rocket.chat}
-      - HOW_MANY=${HOW_MANY:-100}
+      - HOST_URL=${HOST_URL}
+      - HOW_MANY_USERS=${HOW_MANY_USERS:-100}
       - USERS_PER_ROOM=${SEATS_PER_ROOM:-10}
       - LOGIN_BATCH=${LOGIN_BATCH:-5}
       - SSL_ENABLED=${SSL_ENABLED:-yes}
