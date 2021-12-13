@@ -107,22 +107,35 @@ export class WebClient extends Client {
 	}
 
 	async listenPresence(userIds: string[]): Promise<void> {
-		const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
-		const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
+		const endAction = prom.actions.startTimer({ action: 'listenPresence' });
 
-		await this.client.get(
-			`users.presence?ids[]=${newIds.join('&ids[]=')}&wtf=`
-		);
+		try {
+			const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
+			const removeIds = this.usersPresence.filter(
+				(id) => !userIds.includes(id)
+			);
 
-		((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
-			'',
-			{
-				...(newIds && { added: newIds }),
-				...(removeIds && { removed: removeIds }),
-			},
-		]);
+			await this.client.get(
+				`users.presence?ids[]=${newIds.join('&ids[]=')}&wtf=`
+			);
 
-		this.usersPresence = [...new Set(userIds)];
+			((await this.client.socket) as any).ddp.subscribe(
+				'stream-user-presence',
+				[
+					'',
+					{
+						...(newIds && { added: newIds }),
+						...(removeIds && { removed: removeIds }),
+					},
+				]
+			);
+
+			this.usersPresence = [...new Set(userIds)];
+
+			endAction({ action: 'listenPresence', status: 'success' });
+		} catch (e) {
+			endAction({ action: 'listenPresence', status: 'error' });
+		}
 	}
 
 	protected getLoginMethods(): [string, string?][] {
