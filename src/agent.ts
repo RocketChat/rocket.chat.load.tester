@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, Db } from 'mongodb';
 
 import { BenchmarkRunner } from './BenchmarkRunner';
 import { Client } from './client/Client';
@@ -11,11 +11,22 @@ export default (): void => {
 	let agents: Client[];
 
 	const b = new (class extends BenchmarkRunner {
+		private db: Db;
+
 		private skippedPopulate = false;
 
 		private adminUser: Client | undefined;
 
+		private usernames: string[] = [];
+
+		async init() {
+			const client = new MongoClient(config.DATABASE_URL);
+			await client.connect();
+			this.db = client.db(config.DATABASE_NAME);
+		}
+
 		async populate() {
+			await this.init();
 			// Had to duplicate here the getClients() function, because the users from profile() are not ready at this point
 			if (!config.DATABASE_URL) {
 				console.log('Skip populate, no DATABASE_URL');
@@ -25,13 +36,8 @@ export default (): void => {
 
 			console.log('Start populate DB');
 
-			const client = new MongoClient(config.DATABASE_URL);
-
 			try {
-				await client.connect();
-				const db = client.db(config.DATABASE_NAME);
-
-				const users = db.collection('users');
+				const users = this.db.collection('users');
 
 				console.log('Checking if the hash already exists');
 
@@ -41,14 +47,14 @@ export default (): void => {
 					return;
 				}
 
-				const results = await populate();
+				const results = await populate({ roles: ['livechat-agent'] });
 
 				console.log(
 					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`
 				);
 
-				const subscriptions = db.collection('rocketchat_subscription');
-				const rooms = db.collection('rocketchat_room');
+				const subscriptions = this.db.collection('rocketchat_subscription');
+				const rooms = this.db.collection('rocketchat_room');
 
 				await Promise.all([
 					subscriptions.insertMany(results.subscriptions),
@@ -56,22 +62,29 @@ export default (): void => {
 					users.insertMany(results.users),
 				]);
 
+				this.usernames = results.users.map((user) => user.username);
 				console.log('Done populating DB');
-			} finally {
-				await client.close();
+			} catch (e) {
+				console.error(e);
 			}
 		}
 
+		private getCurrentFromUsers(users: string[]): number[] {
+			return users.map((username) => username.split('-')[2]).map(Number);
+		}
+
 		async setup() {
-			const clients = await getClients(config.HOW_MANY_USERS);
-			agents = clients.filter((_v, i) => i % 2 === 0);
+			agents = await getClients(
+				config.HOW_MANY_USERS,
+				this.getCurrentFromUsers(this.usernames)
+			);
 
-			const admin = await getAdminUser();
-			this.adminUser = admin;
-
-			for await (const client of agents) {
-				await admin.promoteUserToAgent(client.username);
-			}
+			const settings = this.db.collection('rocketchat_settings');
+			await settings.updateOne(
+				// @ts-expect-error _id is an ObjectID for mongo, but a string for settings :)
+				{ _id: 'Livechat_Routing_Method' },
+				{ $set: { value: 'Manual_Selection' } }
+			);
 		}
 	})({
 		getRoutingConfig: config.ROUTING_CONFIG_PER_SEC,
@@ -112,7 +125,10 @@ export default (): void => {
 			// Re-fetch inquiry
 			await agent.getInquiry(processedInquiry._id);
 			// open room
-			await agent.openLivechatRoom(processedInquiry.rid);
+			await agent.openLivechatRoom(
+				processedInquiry.rid,
+				processedInquiry.v._id
+			);
 			// fetch info
 			await agent.getVisitorInfo(processedInquiry.v._id);
 			// take inquiry

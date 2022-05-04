@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export type Room = {
 	_id: string;
 	name: string;
@@ -44,6 +46,9 @@ export type User = {
 	statusConnection: string;
 	__rooms: string[];
 };
+
+type WithoutId<T> = Omit<T, '_id'>;
+export type Storable<T> = WithoutId<T> & { _id: ObjectId | undefined };
 
 export type Department = {
 	_id: string;

@@ -265,23 +265,6 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
-	async sendLivechatMessage(msg: string, rid: string): Promise<void> {
-		await delay(1000);
-		const endAction = prom.actions.startTimer({
-			action: 'sendMessageLivechat',
-		});
-		const end = prom.messages.startTimer();
-		try {
-			await this.client.methodCall('sendMessage', { msg, rid });
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-			throw e;
-		}
-	}
-
 	async typing(rid: string, typing: boolean): Promise<void> {
 		this.client.methodCall(
 			'stream-notify-room',
@@ -320,7 +303,7 @@ export class Client {
 		}
 	}
 
-	async openLivechatRoom(_rid: string): Promise<void> {
+	async openLivechatRoom(_rid: string, _vid: string): Promise<void> {
 		// do nothing
 	}
 

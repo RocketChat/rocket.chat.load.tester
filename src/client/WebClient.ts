@@ -251,13 +251,10 @@ export class WebClient extends Client {
 			calls.push(
 				this.client.methodCall('loadHistory', rid, null, 50, new Date())
 			);
-			// calls.push(this.client.methodCall('getRoomRoles', rid));
+			calls.push(this.client.methodCall('getRoomRoles', rid));
 
-			console.log(rid);
-			console.log('maybe here?');
 			await Promise.all(calls);
 
-			console.log('maybe here or there?');
 			await this.read(rid);
 
 			end({ status: 'success' });
@@ -269,7 +266,7 @@ export class WebClient extends Client {
 		}
 	}
 
-	async openLivechatRoom(rid: string): Promise<void> {
+	async openLivechatRoom(rid: string, vid: string): Promise<void> {
 		const end = prom.openRoom.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'openRoom' });
 		try {
@@ -278,6 +275,8 @@ export class WebClient extends Client {
 			];
 
 			calls.push(this.client.methodCall('getRoomRoles', rid));
+
+			calls.push(this.getVisitorInfo(vid));
 
 			await Promise.all(calls);
 

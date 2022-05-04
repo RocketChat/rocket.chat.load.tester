@@ -1,5 +1,5 @@
 import { config } from './config';
-import { Room, User } from './definifitons';
+import { Room, Subscription, User, Storable } from './definifitons';
 import { roomId, subscriptionId, username, email, userId } from './lib/ids';
 
 const today = new Date();
@@ -26,7 +26,7 @@ const userBase = {
 
 const cache: { [k: string]: User } = {};
 
-function createUser(uid: string, count: number, room: Room) {
+function createUser(uid: string, count: number, room: Room, roles?: string[]) {
 	if (cache[uid]) {
 		return cache[uid];
 	}
@@ -34,6 +34,7 @@ function createUser(uid: string, count: number, room: Room) {
 	user._id = uid;
 	user.username = username(count);
 	user.name = `Test User No ${uid}`;
+	user.roles = roles || ['user'];
 	if (user.emails) {
 		user.emails[0].address = email(count);
 	}
@@ -87,7 +88,10 @@ function createSubscription(room: Room, { _id, username }: User) {
 const produceRooms = async (
 	totalRooms: number,
 	usersPerRoom: number,
-	prefix: string
+	prefix: string,
+	options?: {
+		roles?: string[];
+	}
 ): Promise<{ rooms: any[]; users: any[]; subscriptions: any[] }> => {
 	const result: { rooms: any[]; users: Set<any>; subscriptions: any[] } = {
 		rooms: [],
@@ -105,7 +109,7 @@ const produceRooms = async (
 			userCounter++, counter++
 		) {
 			const uid = userId(counter);
-			const newUser = createUser(uid, counter, newRoom);
+			const newUser = createUser(uid, counter, newRoom, options?.roles);
 
 			result.users.add(newUser);
 			const newSub = createSubscription(newRoom, newUser);
@@ -115,14 +119,21 @@ const produceRooms = async (
 	return { ...result, users: [...result.users] };
 };
 
-export default async () => {
+export default async (options?: {
+	roles?: string[];
+}): Promise<{
+	rooms: Storable<Room>[];
+	users: Storable<User>[];
+	subscriptions: Storable<Subscription>[];
+}> => {
 	// compile the arguments and check if the rooms already exist
 	const { HOW_MANY_USERS, USERS_PER_ROOM, hash } = config;
 
 	const { rooms, users, subscriptions } = await produceRooms(
 		Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
 		parseInt(USERS_PER_ROOM),
-		hash
+		hash,
+		options
 	);
 	return { rooms, users, subscriptions };
 };

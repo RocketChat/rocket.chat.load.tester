@@ -34,8 +34,13 @@ export const getAdminUser = async (): Promise<Client> => {
 	return client;
 };
 
-export const getClients = async (size: number): Promise<Client[]> => {
-	const users = Array.from({ length: size }).map((_, i) => i);
+export const getClients = async (
+	size: number,
+	usersCurrent?: number[]
+): Promise<Client[]> => {
+	const users = Array.isArray(usersCurrent)
+		? usersCurrent
+		: Array.from({ length: size }).map((_, i) => i);
 
 	console.log('Logging in', size, 'users');
 
