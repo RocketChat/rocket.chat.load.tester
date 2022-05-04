@@ -1,7 +1,7 @@
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 
 import { config } from '../config';
-import { Subscription } from '../definifitons';
+import { Subscription, Department, Inquiry, Visitor } from '../definifitons';
 import { delay } from '../lib/delay';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
@@ -36,18 +36,30 @@ export class Client {
 
 	usersPresence: string[] = [];
 
-	defaultCredentials = {
-		username: 'loadtest%s',
-		password: 'pass%s',
-		email: 'loadtest%s@loadtest.com',
-	};
+	defaultCredentials:
+		| {
+				email: string;
+				password: string;
+				username: string;
+		  }
+		| undefined = undefined;
 
 	client: RocketChatClient;
 
-	constructor(host: string, type: 'web' | 'android' | 'ios', current: number) {
+	constructor(
+		host: string,
+		type: 'web' | 'android' | 'ios',
+		current: number,
+		credentials?: { username: string; password: string; email: string }
+	) {
 		this.host = host;
 		this.type = type;
 		this.current = current;
+
+		if (credentials) {
+			this.defaultCredentials = credentials;
+		}
+
 		const client = new RocketChatClient({
 			logger,
 			host: this.host,
@@ -88,11 +100,17 @@ export class Client {
 		password: string;
 		email: string;
 	} {
-		return {
-			username: username(this.current),
-			password: 'performance',
-			email: email(this.current),
-		};
+		return (
+			this.defaultCredentials || {
+				username: username(this.current),
+				password: 'performance',
+				email: email(this.current),
+			}
+		);
+	}
+
+	get username(): string {
+		return this.credentials.username;
 	}
 
 	protected async loginOrRegister(): Promise<void> {
@@ -247,6 +265,23 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
+	async sendLivechatMessage(msg: string, rid: string): Promise<void> {
+		await delay(1000);
+		const endAction = prom.actions.startTimer({
+			action: 'sendMessageLivechat',
+		});
+		const end = prom.messages.startTimer();
+		try {
+			await this.client.methodCall('sendMessage', { msg, rid });
+			end({ status: 'success' });
+			endAction({ status: 'success' });
+		} catch (e) {
+			end({ status: 'error' });
+			endAction({ status: 'error' });
+			throw e;
+		}
+	}
+
 	async typing(rid: string, typing: boolean): Promise<void> {
 		this.client.methodCall(
 			'stream-notify-room',
@@ -285,11 +320,25 @@ export class Client {
 		}
 	}
 
+	async openLivechatRoom(_rid: string): Promise<void> {
+		// do nothing
+	}
+
 	getRandomSubscription(): Subscription {
 		const subscriptions = this.subscriptions.filter(
 			(sub) =>
 				config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
 				config.IGNORE_ROOMS.indexOf(sub.name) === -1
+		);
+		return rand(subscriptions);
+	}
+
+	getRandomLivechatSubscription(): Subscription {
+		const subscriptions = this.subscriptions.filter(
+			(sub) =>
+				config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
+				config.IGNORE_ROOMS.indexOf(sub.name) === -1 &&
+				sub.t === 'l'
 		);
 		return rand(subscriptions);
 	}
@@ -317,6 +366,110 @@ export class Client {
 			);
 			end({ status: 'error' });
 			endAction({ status: 'error' });
+		}
+	}
+
+	async promoteUserToAgent(username: string): Promise<void> {
+		const endRole = prom.roleAdd.startTimer();
+		const end = prom.actions.startTimer({ action: 'promoteUserToAgent' });
+		try {
+			await this.client.post(
+				'livechat/users/agent',
+				{
+					username,
+				},
+				true
+			);
+			end({ status: 'success' });
+			endRole({ status: 'success' });
+		} catch (e) {
+			end({ status: 'error' });
+			endRole({ status: 'error' });
+		}
+	}
+
+	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
+		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
+		try {
+			const routingConfig = await this.client.methodCall(
+				'livechat:getRoutingConfig'
+			);
+
+			end({ status: 'success' });
+			return routingConfig;
+		} catch (e) {
+			end({ status: 'error' });
+		}
+	}
+
+	async getAgentDepartments(): Promise<Department[] | undefined> {
+		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
+		try {
+			const departments = await this.client.get(
+				`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`
+			);
+
+			end({ status: 'success' });
+			return departments;
+		} catch (e) {
+			end({ status: 'error' });
+		}
+	}
+
+	async getQueuedInquiries(): Promise<{ inquiries: Inquiry[] } | undefined> {
+		const end = prom.actions.startTimer({ action: 'getQueuedInquiries' });
+		try {
+			const inquiries = await this.client.get(
+				`livechat/inquiries.queuedForUser`,
+				{ userId: this.client.userId }
+			);
+
+			end({ status: 'success' });
+			return inquiries;
+		} catch (e) {
+			end({ status: 'error' });
+		}
+	}
+
+	async takeInquiry(id: string): Promise<void> {
+		const end = prom.actions.startTimer({ action: 'takeInquiry' });
+		const endInq = prom.inquiryTaken.startTimer();
+		try {
+			await this.client.methodCall('livechat:takeInquiry', id, {
+				clientAction: true,
+			});
+			end({ status: 'success' });
+			endInq({ status: 'success' });
+		} catch (e) {
+			end({ status: 'error' });
+			endInq({ status: 'error' });
+		}
+	}
+
+	async getInquiry(id: string): Promise<Inquiry | undefined> {
+		const end = prom.actions.startTimer({ action: 'getOneInquiry' });
+		try {
+			const inq = await this.client.get(`livechat/inquiries.getOne`, {
+				roomId: id,
+			});
+
+			end({ status: 'success' });
+			return inq;
+		} catch (e) {
+			end({ status: 'error' });
+		}
+	}
+
+	async getVisitorInfo(vid: string): Promise<Visitor | undefined> {
+		const end = prom.actions.startTimer({ action: 'getVisitorInfo' });
+		try {
+			const v = await this.client.get(`livechat/visitors.info`, {
+				visitorId: vid,
+			});
+			end({ status: 'success' });
+			return v;
+		} catch (e) {
+			end({ status: 'error' });
 		}
 	}
 }

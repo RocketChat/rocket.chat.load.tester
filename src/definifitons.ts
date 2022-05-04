@@ -20,6 +20,7 @@ export type Subscription = {
 	_id: string;
 	rid: string;
 	name: string;
+	t: string;
 };
 
 export type User = {
@@ -42,4 +43,22 @@ export type User = {
 	lastLogin: Date;
 	statusConnection: string;
 	__rooms: string[];
+};
+
+export type Department = {
+	_id: string;
+	name: string;
+};
+
+export type Inquiry = {
+	_id: string;
+	rid: string;
+	v: {
+		_id: string;
+	};
+};
+
+export type Visitor = {
+	_id: string;
+	name: string;
 };

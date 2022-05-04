@@ -11,4 +11,17 @@ export class ClientBase {
 
 		return new Client(host, type, current);
 	}
+
+	static getClientWithCredentials(
+		host: string,
+		type: ClientType,
+		current: number,
+		credentials: { username: string; password: string; email: string }
+	): Client {
+		if (type === 'web') {
+			return new WebClient(host, type, current, credentials);
+		}
+
+		return new Client(host, type, current, credentials);
+	}
 }

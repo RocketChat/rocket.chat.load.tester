@@ -251,11 +251,35 @@ export class WebClient extends Client {
 			calls.push(
 				this.client.methodCall('loadHistory', rid, null, 50, new Date())
 			);
+			// calls.push(this.client.methodCall('getRoomRoles', rid));
+
+			console.log(rid);
+			console.log('maybe here?');
+			await Promise.all(calls);
+
+			console.log('maybe here or there?');
+			await this.read(rid);
+
+			end({ status: 'success' });
+			endAction({ status: 'success' });
+		} catch (e) {
+			console.error('error open room', { uid: this.client.userId, rid }, e);
+			end({ status: 'error' });
+			endAction({ status: 'error' });
+		}
+	}
+
+	async openLivechatRoom(rid: string): Promise<void> {
+		const end = prom.openRoom.startTimer();
+		const endAction = prom.actions.startTimer({ action: 'openRoom' });
+		try {
+			const calls: Promise<unknown>[] = [
+				this.client.methodCall('loadHistory', rid, null, 50, new Date()),
+			];
+
 			calls.push(this.client.methodCall('getRoomRoles', rid));
 
 			await Promise.all(calls);
-
-			await this.read(rid);
 
 			end({ status: 'success' });
 			endAction({ status: 'success' });

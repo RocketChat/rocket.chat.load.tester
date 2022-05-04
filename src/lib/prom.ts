@@ -46,6 +46,18 @@ export const actions = new client.Summary({
 	labelNames: ['action', 'status'],
 });
 
+export const roleAdd = new client.Summary({
+	name: 'rc_load_role_add',
+	help: 'Role added',
+	labelNames: ['status'],
+});
+
+export const inquiryTaken = new client.Summary({
+	name: 'rc_load_inquiry_taken',
+	help: 'Inquiry taken',
+	labelNames: ['status'],
+});
+
 export default client;
 
 export { client };
