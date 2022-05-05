@@ -9,5 +9,5 @@ import './server';
 (global as any).fetch = fetch;
 (global as any).FormData = FormData;
 
-profile();
+// profile();
 agent();

@@ -46,6 +46,8 @@ export class Client {
 
 	client: RocketChatClient;
 
+	subscribedToLivechat = false;
+
 	constructor(
 		host: string,
 		type: 'web' | 'android' | 'ios',
@@ -352,25 +354,6 @@ export class Client {
 		}
 	}
 
-	async promoteUserToAgent(username: string): Promise<void> {
-		const endRole = prom.roleAdd.startTimer();
-		const end = prom.actions.startTimer({ action: 'promoteUserToAgent' });
-		try {
-			await this.client.post(
-				'livechat/users/agent',
-				{
-					username,
-				},
-				true
-			);
-			end({ status: 'success' });
-			endRole({ status: 'success' });
-		} catch (e) {
-			end({ status: 'error' });
-			endRole({ status: 'error' });
-		}
-	}
-
 	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
 		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
 		try {
@@ -385,7 +368,9 @@ export class Client {
 		}
 	}
 
-	async getAgentDepartments(): Promise<Department[] | undefined> {
+	async getAgentDepartments(): Promise<
+		{ departments: Department[] } | undefined
+	> {
 		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
 		try {
 			const departments = await this.client.get(
@@ -411,6 +396,28 @@ export class Client {
 			return inquiries;
 		} catch (e) {
 			end({ status: 'error' });
+		}
+	}
+
+	async subscribeDeps(deps: string[]): Promise<void> {
+		if (this.subscribedToLivechat) {
+			return;
+		}
+
+		try {
+			const topic = 'livechat-inquiry-queue-observer';
+
+			await Promise.all([
+				this.client.subscribe(topic, 'public'), // always to public
+				...deps.map(
+					(department) =>
+						this.client.subscribe(topic, `department/${department}`) // and to deps, if any
+				),
+			]);
+			this.subscribedToLivechat = true;
+		} catch (e) {
+			console.error('error subscribing to livechat', e);
+			this.subscribedToLivechat = false;
 		}
 	}
 

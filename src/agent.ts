@@ -4,14 +4,16 @@ import { BenchmarkRunner } from './BenchmarkRunner';
 import { Client } from './client/Client';
 import { config } from './config';
 import { rand } from './lib/rand';
-import { getAdminUser, getClients } from './macros/getClients';
+import { getClients } from './macros/getClients';
 import populate from './populate';
 
 export default (): void => {
 	let agents: Client[];
 
 	const b = new (class extends BenchmarkRunner {
-		private db: Db;
+		private db: Db | undefined;
+
+		private client: MongoClient | undefined;
 
 		private skippedPopulate = false;
 
@@ -20,9 +22,9 @@ export default (): void => {
 		private usernames: string[] = [];
 
 		async init() {
-			const client = new MongoClient(config.DATABASE_URL);
-			await client.connect();
-			this.db = client.db(config.DATABASE_NAME);
+			this.client = new MongoClient(config.DATABASE_URL);
+			await this.client.connect();
+			this.db = this.client.db(config.DATABASE_NAME);
 		}
 
 		async populate() {
@@ -34,6 +36,10 @@ export default (): void => {
 				return;
 			}
 
+			if (!this.db) {
+				return;
+			}
+
 			console.log('Start populate DB');
 
 			try {
@@ -41,7 +47,12 @@ export default (): void => {
 
 				console.log('Checking if the hash already exists');
 
-				if (await users.findOne({ _id: new RegExp(config.hash) })) {
+				if (
+					await users.findOne({
+						_id: new RegExp(config.hash),
+						roles: ['livechat-agent'],
+					})
+				) {
 					console.log('Task skipped');
 					this.skippedPopulate = true;
 					return;
@@ -62,6 +73,7 @@ export default (): void => {
 					users.insertMany(results.users),
 				]);
 
+				console.log(results);
 				this.usernames = results.users.map((user) => user.username);
 				console.log('Done populating DB');
 			} catch (e) {
@@ -73,7 +85,33 @@ export default (): void => {
 			return users.map((username) => username.split('-')[2]).map(Number);
 		}
 
+		async stopdb() {
+			await this.client?.close();
+		}
+
 		async setup() {
+			if (!this.db) {
+				return;
+			}
+
+			if (this.skippedPopulate) {
+				console.log('finding users');
+				// since no population was done, let's find some agents :)
+				const users = this.db.collection('users');
+				this.usernames = (
+					await users
+						.find(
+							{
+								_id: new RegExp(config.hash),
+								roles: ['livechat-agent'],
+							},
+							{ projection: { username: 1 } }
+						)
+						.toArray()
+				).map((user) => user.username);
+			}
+
+			console.log(this.usernames);
 			agents = await getClients(
 				config.HOW_MANY_USERS,
 				this.getCurrentFromUsers(this.usernames)
@@ -89,23 +127,31 @@ export default (): void => {
 	})({
 		getRoutingConfig: config.ROUTING_CONFIG_PER_SEC,
 		getQueuedInquiries: config.QUEUED_INQUIRIES_PER_SEC,
-		sendMessageLivechat: config.LIVECHAT_MESSAGES_PER_SEC,
+		takeInquiry: config.TAKE_INQUIRY_PER_SEC,
 	});
 
-	b.on('ready', () => {
-		console.log('Started agent processing');
-		console.log(
-			'algo is determined by the server, by default it should be MANUAL_SELECTION'
-		);
+	b.on('ready', async () => {
+		console.log('[AGENTS] Ready');
+		await b.stopdb();
 	});
 
 	b.on('getRoutingConfig', async () => {
 		const agent = rand(agents);
 		await agent.getRoutingConfig();
-		await agent.getAgentDepartments();
+		const { departments } = (await agent.getAgentDepartments()) || {
+			departments: [],
+		};
+		const deps = departments.map((department) => department.departmentId);
+
+		await agent.subscribeDeps(deps);
 	});
 
 	b.on('getQueuedInquiries', async () => {
+		const agent = rand(agents);
+		await agent.getQueuedInquiries();
+	});
+
+	b.on('takeInquiry', async () => {
 		const agent = rand(agents);
 		const response = await agent.getQueuedInquiries();
 		if (!response?.inquiries) {
@@ -138,7 +184,7 @@ export default (): void => {
 		}
 	});
 
-	b.on('sendMessageLivechat', async () => {
+	b.on('message', async () => {
 		const agent = rand(agents);
 		const sub = agent.getRandomLivechatSubscription();
 

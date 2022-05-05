@@ -51,8 +51,8 @@ type WithoutId<T> = Omit<T, '_id'>;
 export type Storable<T> = WithoutId<T> & { _id: ObjectId | undefined };
 
 export type Department = {
-	_id: string;
 	name: string;
+	departmentId: string;
 };
 
 export type Inquiry = {
