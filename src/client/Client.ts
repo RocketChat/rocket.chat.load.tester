@@ -34,6 +34,8 @@ export class Client {
 
 	current: number;
 
+	extraPrefix: string;
+
 	usersPresence: string[] = [];
 
 	defaultCredentials:
@@ -52,11 +54,13 @@ export class Client {
 		host: string,
 		type: 'web' | 'android' | 'ios',
 		current: number,
+		extraPrefix = '',
 		credentials?: { username: string; password: string; email: string }
 	) {
 		this.host = host;
 		this.type = type;
 		this.current = current;
+		this.extraPrefix = extraPrefix;
 
 		if (credentials) {
 			this.defaultCredentials = credentials;
@@ -104,9 +108,9 @@ export class Client {
 	} {
 		return (
 			this.defaultCredentials || {
-				username: username(this.current),
+				username: username(this.current, this.extraPrefix),
 				password: 'performance',
-				email: email(this.current),
+				email: email(this.current, this.extraPrefix),
 			}
 		);
 	}

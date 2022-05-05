@@ -11,31 +11,11 @@ const {
 	// USERS_EMAIL = 'tester-%s@domain.com',
 	HOST_URL = 'http://localhost:3000',
 	// MESSAGE_SENDING_RATE = 0.002857142857143,
-
-	ADMIN_USER = 'kaleman',
-	ADMIN_PASSWORD = 'test',
-	ADMIN_EMAIL = 'kaleman@test.com',
 } = process.env;
-
-export const getAdminUser = async (): Promise<Client> => {
-	const client = ClientBase.getClientWithCredentials(
-		HOST_URL,
-		CLIENT_TYPE as 'web' | 'android' | 'ios',
-		999999,
-		{
-			username: ADMIN_USER,
-			password: ADMIN_PASSWORD,
-			email: ADMIN_EMAIL,
-		}
-	);
-
-	await client.login();
-
-	return client;
-};
 
 export const getClients = async (
 	size: number,
+	userPrefix = '',
 	usersCurrent?: number[]
 ): Promise<Client[]> => {
 	const users = Array.isArray(usersCurrent)
@@ -54,7 +34,8 @@ export const getClients = async (
 			const client = ClientBase.getClient(
 				HOST_URL,
 				CLIENT_TYPE as 'web' | 'android' | 'ios',
-				index as number
+				index as number,
+				userPrefix
 			);
 
 			await client.login();

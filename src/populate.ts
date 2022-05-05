@@ -26,19 +26,34 @@ const userBase = {
 
 const cache: { [k: string]: User } = {};
 
-function createUser(uid: string, count: number, room: Room, roles?: string[]) {
+function createUser(
+	uid: string,
+	count: number,
+	room?: Room,
+	options?: {
+		userProps?: {
+			roles?: string[];
+			extraPrefix?: string;
+			[k: string]: unknown;
+		};
+		onlyUsers?: boolean;
+	}
+) {
 	if (cache[uid]) {
 		return cache[uid];
 	}
-	const user = JSON.parse(JSON.stringify(userBase));
+	const { roles, extraPrefix, ...props } = options?.userProps || {};
+	let user = JSON.parse(JSON.stringify(userBase));
+	user = { ...user, ...props };
+
 	user._id = uid;
-	user.username = username(count);
+	user.username = username(count, options?.userProps?.extraPrefix);
 	user.name = `Test User No ${uid}`;
-	user.roles = roles || ['user'];
+	user.roles = options?.userProps?.roles || ['user'];
 	if (user.emails) {
 		user.emails[0].address = email(count);
 	}
-	user.__rooms.push(room._id);
+	room && user.__rooms.push(room._id);
 	cache[uid] = user;
 	return user;
 }
@@ -90,7 +105,12 @@ const produceRooms = async (
 	usersPerRoom: number,
 	prefix: string,
 	options?: {
-		roles?: string[];
+		userProps?: {
+			roles?: string[];
+			extraPrefix?: string;
+			[k: string]: unknown;
+		};
+		onlyUsers?: boolean;
 	}
 ): Promise<{ rooms: any[]; users: any[]; subscriptions: any[] }> => {
 	const result: { rooms: any[]; users: Set<any>; subscriptions: any[] } = {
@@ -108,8 +128,8 @@ const produceRooms = async (
 			userCounter < usersPerRoom;
 			userCounter++, counter++
 		) {
-			const uid = userId(counter);
-			const newUser = createUser(uid, counter, newRoom, options?.roles);
+			const uid = userId(counter, options?.userProps?.extraPrefix);
+			const newUser = createUser(uid, counter, newRoom, options);
 
 			result.users.add(newUser);
 			const newSub = createSubscription(newRoom, newUser);
@@ -119,15 +139,57 @@ const produceRooms = async (
 	return { ...result, users: [...result.users] };
 };
 
+const produceUsers = async (
+	totalRooms: number,
+	usersPerRoom: number,
+	prefix: string,
+	options?: {
+		userProps?: {
+			roles?: string[];
+			extraPrefix?: string;
+			[k: string]: unknown;
+		};
+		onlyUsers?: boolean;
+	}
+): Promise<{ users: Storable<User>[] }> => {
+	const total = totalRooms * usersPerRoom;
+	const users: Storable<User>[] = [];
+	for (let userCounter = 0; userCounter < total; userCounter++) {
+		const uid = userId(userCounter, options?.userProps?.extraPrefix);
+		const newUser = createUser(uid, userCounter, undefined, options);
+
+		users.push(newUser);
+	}
+
+	return { users };
+};
+
 export default async (options?: {
-	roles?: string[];
-}): Promise<{
-	rooms: Storable<Room>[];
-	users: Storable<User>[];
-	subscriptions: Storable<Subscription>[];
-}> => {
+	userProps: {
+		roles?: string[];
+		extraPrefix?: string;
+		[k: string]: unknown;
+	};
+	onlyUsers?: boolean;
+}): Promise<
+	| {
+			rooms: Storable<Room>[];
+			users: Storable<User>[];
+			subscriptions: Storable<Subscription>[];
+	  }
+	| { users: Storable<User>[] }
+> => {
 	// compile the arguments and check if the rooms already exist
 	const { HOW_MANY_USERS, USERS_PER_ROOM, hash } = config;
+
+	if (options?.onlyUsers) {
+		return produceUsers(
+			Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
+			parseInt(USERS_PER_ROOM),
+			hash,
+			options
+		);
+	}
 
 	const { rooms, users, subscriptions } = await produceRooms(
 		Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
@@ -137,3 +199,28 @@ export default async (options?: {
 	);
 	return { rooms, users, subscriptions };
 };
+
+export const isOnlyUserPopulation = (
+	result:
+		| {
+				rooms: Storable<Room>[];
+				users: Storable<User>[];
+				subscriptions: Storable<Subscription>[];
+		  }
+		| { users: Storable<User>[] }
+): result is { users: Storable<User>[] } =>
+	'users' in result && !('rooms' in result);
+
+export const isFullPopulation = (
+	result:
+		| {
+				rooms: Storable<Room>[];
+				users: Storable<User>[];
+				subscriptions: Storable<Subscription>[];
+		  }
+		| { users: Storable<User>[] }
+): result is {
+	rooms: Storable<Room>[];
+	users: Storable<User>[];
+	subscriptions: Storable<Subscription>[];
+} => 'rooms' in result && 'users' in result && 'subscriptions' in result;

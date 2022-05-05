@@ -5,7 +5,7 @@ import { Client } from './client/Client';
 import { config } from './config';
 import { rand } from './lib/rand';
 import { getClients } from './macros/getClients';
-import populate from './populate';
+import populate, { isOnlyUserPopulation } from './populate';
 
 export default (): void => {
 	let agents: Client[];
@@ -20,6 +20,8 @@ export default (): void => {
 		private adminUser: Client | undefined;
 
 		private usernames: string[] = [];
+
+		private extraPrefix = '-agent-';
 
 		async init() {
 			this.client = new MongoClient(config.DATABASE_URL);
@@ -49,7 +51,7 @@ export default (): void => {
 
 				if (
 					await users.findOne({
-						_id: new RegExp(config.hash),
+						_id: new RegExp(`${config.hash}${this.extraPrefix}`),
 						roles: ['livechat-agent'],
 					})
 				) {
@@ -58,20 +60,22 @@ export default (): void => {
 					return;
 				}
 
-				const results = await populate({ roles: ['livechat-agent'] });
+				const results = await populate({
+					userProps: {
+						roles: ['livechat-agent'],
+						extraPrefix: '-agent-',
+						statusLivechat: 'available',
+					},
+					onlyUsers: true,
+				});
 
-				console.log(
-					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`
-				);
+				if (!isOnlyUserPopulation(results)) {
+					return;
+				}
 
-				const subscriptions = this.db.collection('rocketchat_subscription');
-				const rooms = this.db.collection('rocketchat_room');
+				console.log(`Inserting users: ${results.users.length}`);
 
-				await Promise.all([
-					subscriptions.insertMany(results.subscriptions),
-					rooms.insertMany(results.rooms),
-					users.insertMany(results.users),
-				]);
+				await Promise.all([users.insertMany(results.users)]);
 
 				console.log(results);
 				this.usernames = results.users.map((user) => user.username);
@@ -82,7 +86,7 @@ export default (): void => {
 		}
 
 		private getCurrentFromUsers(users: string[]): number[] {
-			return users.map((username) => username.split('-')[2]).map(Number);
+			return users.map((username) => username.split('-')[4]).map(Number);
 		}
 
 		async stopdb() {
@@ -102,7 +106,7 @@ export default (): void => {
 					await users
 						.find(
 							{
-								_id: new RegExp(config.hash),
+								_id: new RegExp(`${config.hash}${this.extraPrefix}`),
 								roles: ['livechat-agent'],
 							},
 							{ projection: { username: 1 } }
@@ -114,6 +118,7 @@ export default (): void => {
 			console.log(this.usernames);
 			agents = await getClients(
 				config.HOW_MANY_USERS,
+				this.extraPrefix,
 				this.getCurrentFromUsers(this.usernames)
 			);
 

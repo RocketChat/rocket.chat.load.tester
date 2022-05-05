@@ -7,7 +7,7 @@ import { userId } from './lib/ids';
 import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 // import { joinRooms } from './macros/joinRooms';
-import populate from './populate';
+import populate, { isFullPopulation } from './populate';
 
 export default (): void => {
 	let clients: Client[];
@@ -41,6 +41,10 @@ export default (): void => {
 				}
 
 				const results = await populate();
+
+				if (!isFullPopulation(results)) {
+					return;
+				}
 
 				console.log(
 					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`
