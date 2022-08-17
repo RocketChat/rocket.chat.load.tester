@@ -24,6 +24,11 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/rocketchat/rocket.chat.load.tester
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
       -
         name: Login to GHCR
         uses: docker/login-action@v2
@@ -37,3 +42,4 @@ jobs:
         with:
           context: .
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
