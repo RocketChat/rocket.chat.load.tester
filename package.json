@@ -3,17 +3,17 @@
   "version": "0.0.1",
   "description": "",
   "author": "Diego Sampaio <chinello@gmail.com>",
-  "homepage": "https://github.com/sampaiodiego/rocket.chat.load.tester",
+  "homepage": "https://github.com/RocketChat/rocket.chat.load.tester",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sampaiodiego/rocket.chat.load.tester.git"
+    "url": "git+https://github.com/RocketChat/rocket.chat.load.tester.git"
   },
   "bugs": {
-    "url": "https://github.com/sampaiodiego/rocket.chat.load.tester/issues"
+    "url": "https://github.com/RocketChat/rocket.chat.load.tester/issues"
   },
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
