@@ -20,7 +20,10 @@ type EventKeys =
 	| 'setUserStatus'
 	| 'readMessages'
 	| 'openRoom'
-	| 'subscribePresence';
+	| 'subscribePresence'
+	| 'getRoutingConfig'
+	| 'getQueuedInquiries'
+	| 'takeInquiry';
 
 const eventsPerSecond = (events: number): number => Math.ceil(1000 / events);
 

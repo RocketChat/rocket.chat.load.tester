@@ -12,13 +12,14 @@ export const roomId = (counter: number): string =>
 		'__count__',
 		String(counter)
 	);
-export const userId = (counter: number): string =>
-	config.USER_ID.replace('__prefix__', config.hash).replace(
-		'__count__',
-		String(counter)
-	);
+export const userId = (counter: number, extraPrefix = ''): string =>
+	config.USER_ID.replace(
+		'__prefix__',
+		`${config.hash}${extraPrefix || ''}`
+	).replace('__count__', String(counter));
 
-export const username = (counter: number): string => `user.${userId(counter)}`;
+export const username = (counter: number, extraPrefix = ''): string =>
+	`user.${userId(counter, extraPrefix)}`;
 
-export const email = (counter: number): string =>
-	username(counter) + config.USERS_EMAIL;
+export const email = (counter: number, extraPrefix = ''): string =>
+	username(counter, extraPrefix) + config.USERS_EMAIL;

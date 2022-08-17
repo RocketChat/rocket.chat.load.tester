@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export type Room = {
 	_id: string;
 	name: string;
@@ -20,6 +22,7 @@ export type Subscription = {
 	_id: string;
 	rid: string;
 	name: string;
+	t: string;
 };
 
 export type User = {
@@ -43,3 +46,33 @@ export type User = {
 	statusConnection: string;
 	__rooms: string[];
 };
+
+type WithoutId<T> = Omit<T, '_id'>;
+export type Storable<T> = WithoutId<T> & { _id: ObjectId | undefined };
+
+export type Department = {
+	name: string;
+	departmentId: string;
+};
+
+export type Inquiry = {
+	_id: string;
+	rid: string;
+	v: {
+		_id: string;
+	};
+};
+
+export type Visitor = {
+	_id: string;
+	name: string;
+};
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type ObjectKeys<T> = T extends object
+	? (keyof T)[]
+	: T extends number
+	? []
+	: T extends Array<any> | string
+	? string[]
+	: never;

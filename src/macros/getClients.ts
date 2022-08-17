@@ -13,8 +13,14 @@ const {
 	// MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
-export const getClients = async (size: number): Promise<Client[]> => {
-	const users = Array.from({ length: size }).map((_, i) => i);
+export const getClients = async (
+	size: number,
+	userPrefix = '',
+	usersCurrent?: number[]
+): Promise<Client[]> => {
+	const users = Array.isArray(usersCurrent)
+		? usersCurrent
+		: Array.from({ length: size }).map((_, i) => i);
 
 	console.log('Logging in', size, 'users');
 
@@ -28,7 +34,8 @@ export const getClients = async (size: number): Promise<Client[]> => {
 			const client = ClientBase.getClient(
 				HOST_URL,
 				CLIENT_TYPE as 'web' | 'android' | 'ios',
-				index as number
+				index as number,
+				userPrefix
 			);
 
 			await client.login();

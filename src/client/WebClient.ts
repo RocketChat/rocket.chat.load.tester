@@ -266,6 +266,29 @@ export class WebClient extends Client {
 		}
 	}
 
+	async openLivechatRoom(rid: string, vid: string): Promise<void> {
+		const end = prom.openRoom.startTimer();
+		const endAction = prom.actions.startTimer({ action: 'openRoom' });
+		try {
+			const calls: Promise<unknown>[] = [
+				this.client.methodCall('loadHistory', rid, null, 50, new Date()),
+			];
+
+			calls.push(this.client.methodCall('getRoomRoles', rid));
+
+			calls.push(this.getVisitorInfo(vid));
+
+			await Promise.all(calls);
+
+			end({ status: 'success' });
+			endAction({ status: 'success' });
+		} catch (e) {
+			console.error('error open room', { uid: this.client.userId, rid }, e);
+			end({ status: 'error' });
+			endAction({ status: 'error' });
+		}
+	}
+
 	async subscribeRoom(rid: string): Promise<void> {
 		const end = prom.roomSubscribe.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'subscribeRoom' });
