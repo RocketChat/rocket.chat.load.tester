@@ -19,7 +19,8 @@ const actionsParam = process.argv[2];
 let actionList: ObjectKeys<typeof actions>;
 
 if (!actionsParam || !actionsParam.includes('process')) {
-	actionList = Object.keys(actions);
+	// will run only 'profile' by default
+	actionList = ['profile'];
 } else {
 	actionList = actionsParam.split('--process=').pop()?.split(',') as ObjectKeys<
 		typeof actions

@@ -1,3 +1,5 @@
+import EJSON from 'ejson';
+
 import { config } from '../config';
 import { Subscription } from '../definifitons';
 import { userId } from '../lib/ids';
@@ -11,8 +13,8 @@ export class WebClient extends Client {
 
 		prom.connected.inc();
 
-		await this.client.methodCall('public-settings/get');
-		await this.client.methodCall('permissions/get');
+		await this.methodAnonViaRest('public-settings/get');
+		await this.methodAnonViaRest('permissions/get');
 
 		// this is done to simulate web client
 		await this.client.subscribe('meteor.loginServiceConfiguration');
@@ -20,7 +22,7 @@ export class WebClient extends Client {
 
 		// await client.subscribeNotifyAll();
 		await Promise.all(
-			['updateEmojiCustom', 'deleteEmojiCustom', 'public-settings-changed'].map(
+			['deleteCustomSound', 'updateCustomSound', 'public-settings-changed'].map(
 				(event) => this.client.subscribe('stream-notify-all', event, false)
 			)
 		);
@@ -38,12 +40,16 @@ export class WebClient extends Client {
 			await this.client.subscribeLoggedNotify();
 			await Promise.all(
 				[
-					'Users:NameChanged',
-					'Users:Deleted',
-					'updateAvatar',
 					'updateEmojiCustom',
 					'deleteEmojiCustom',
+					'deleteCustomUserStatus',
+					'updateCustomUserStatus',
+					'banner-changed',
+					'updateAvatar',
+					'Users:NameChanged',
+					'Users:Deleted',
 					'roles-change',
+					'voip.statuschanged',
 					'permissions-changed',
 				].map((event) =>
 					this.client.subscribe('stream-notify-logged', event, false)
@@ -53,13 +59,16 @@ export class WebClient extends Client {
 			// await client.subscribeNotifyUser();
 			await Promise.all(
 				[
+					'uiInteraction',
+					'video-conference',
+					'force_logout',
 					'message',
-					'otr',
-					'webrtc',
-					'notification',
-					'audioNotification',
-					'rooms-changed',
 					'subscriptions-changed',
+					'notification',
+					'otr',
+					'rooms-changed',
+					'webrtc',
+					'userData',
 				].map((event) =>
 					this.client.subscribe(
 						'stream-notify-user',
@@ -70,16 +79,24 @@ export class WebClient extends Client {
 			);
 
 			await Promise.all(
-				this.getLoginSubs().map(([stream, ...params]) =>
-					this.client.subscribe(stream, ...params)
-				)
+				[
+					'app/added',
+					'app/removed',
+					'app/updated',
+					'app/settingUpdated',
+					'command/added',
+					'command/disabled',
+					'command/updated',
+					'command/removed',
+					'actions/changed',
+				].map((event) => this.client.subscribe('stream-apps', event, false))
 			);
 
-			const [subscriptions] = await Promise.all(
-				this.getLoginMethods().map((params) =>
-					this.client.methodCall(...params)
-				)
+			await Promise.all(
+				this.getLoginMethods().map((params) => this.methodViaRest(...params))
 			);
+
+			const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
 			this.subscriptions = subscriptions as unknown as Subscription[];
 
@@ -140,103 +157,27 @@ export class WebClient extends Client {
 
 	protected getLoginMethods(): [string, string?][] {
 		const methods: [string, string?][] = [];
-		methods.push(['subscriptions/get']);
+
+		methods.push(['license:getModules']);
 		methods.push(['listCustomSounds']);
-		methods.push(['listEmojiCustom']);
-		methods.push(['getUserRoles']);
-		methods.push(['rooms/get']);
 		methods.push(['apps/is-enabled']);
+		methods.push(['listCustomUserStatus']);
+		methods.push(['license:isEnterprise']);
 		methods.push(['loadLocale', 'pt-BR']);
-		// methods.push(['autoTranslate.getSupportedLanguages', 'en']);
+		methods.push(['getUserRoles']);
+		methods.push(['autoTranslate.getProviderUiMetadata']);
+		methods.push(['autoTranslate.getSupportedLanguages', 'en']);
+		methods.push(['cloud:checkRegisterStatus']);
+		methods.push(['livechat:getRoutingConfig']);
+		methods.push(['rooms/get']);
 
 		return methods;
 	}
 
-	protected getLoginSubs = (): [
-		string,
-		string,
-		{ useCollection: false; args: [] }
-	][] => {
-		const subs: [string, string, { useCollection: false; args: [] }][] = [];
-		subs.push([
-			'stream-notify-all',
-			'deleteCustomSound',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-notify-all',
-			'updateCustomSound',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-notify-all',
-			'public-settings-changed',
-			{ useCollection: false, args: [] },
-		]);
-		// subs.push([
-		// 	'stream-notify-logged',
-		// 	'user-status',
-		// 	{ useCollection: false, args: [] },
-		// ]);
-		subs.push([
-			'stream-notify-logged',
-			'permissions-changed',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-importers',
-			'progress',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push(['stream-apps', 'app/added', { useCollection: false, args: [] }]);
-		subs.push([
-			'stream-apps',
-			'app/removed',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'app/updated',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'app/statusUpdate',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'app/settingUpdated',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'command/added',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'command/disabled',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'command/updated',
-			{ useCollection: false, args: [] },
-		]);
-		subs.push([
-			'stream-apps',
-			'command/removed',
-			{ useCollection: false, args: [] },
-		]);
-
-		return subs;
-	};
-
 	async typing(rid: string, typing: boolean): Promise<void> {
 		this.client.methodCall(
 			'stream-notify-room',
-			`${rid}/typing`,
+			`${rid}/user-activity`,
 			this.client.username,
 			typing
 		);
@@ -298,7 +239,7 @@ export class WebClient extends Client {
 			const topic = 'stream-notify-room';
 			await Promise.all([
 				this.client.subscribe('stream-room-messages', rid),
-				this.client.subscribe(topic, `${rid}/typing`),
+				this.client.subscribe(topic, `${rid}/user-activity`),
 				this.client.subscribe(topic, `${rid}/deleteMessage`),
 				this.client.subscribe(topic, `${rid}/deleteMessageBulk`),
 			]);
@@ -314,5 +255,51 @@ export class WebClient extends Client {
 			end({ status: 'error' });
 			endAction({ status: 'error' });
 		}
+	}
+
+	private async methodCallRest({
+		method,
+		params,
+		anon,
+	}: {
+		method: string;
+		params: unknown[];
+		anon?: boolean;
+	}) {
+		const message = EJSON.stringify({
+			msg: 'method',
+			id: 1001,
+			method,
+			params,
+		});
+
+		const result = await this.client.post(
+			`${anon ? 'method.callAnon' : ''}/${encodeURIComponent(method)}`,
+			{
+				message,
+			}
+		);
+
+		if (!result.success) {
+			throw new Error(result.error);
+		}
+
+		const msgResult = EJSON.parse(result.message);
+
+		return msgResult.result;
+	}
+
+	protected async methodViaRest(
+		method: string,
+		...params: unknown[]
+	): Promise<unknown> {
+		return this.methodCallRest({ method, params });
+	}
+
+	protected async methodAnonViaRest(
+		method: string,
+		...params: unknown[]
+	): Promise<unknown> {
+		return this.methodCallRest({ method, params, anon: true });
 	}
 }
