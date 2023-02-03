@@ -274,7 +274,9 @@ export class WebClient extends Client {
 		});
 
 		const result = await this.client.post(
-			`${anon ? 'method.callAnon' : ''}/${encodeURIComponent(method)}`,
+			`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(
+				method
+			)}`,
 			{
 				message,
 			}
