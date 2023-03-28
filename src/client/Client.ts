@@ -1,4 +1,8 @@
+import { URLSearchParams } from 'url';
+
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
+import EJSON from 'ejson';
+import fetch from 'node-fetch';
 
 import { config } from '../config';
 import { Subscription, Department, Inquiry, Visitor } from '../definifitons';
@@ -465,5 +469,66 @@ export class Client {
 		} catch (e) {
 			end({ status: 'error' });
 		}
+	}
+
+	private async methodCallRest({
+		method,
+		params,
+		anon,
+	}: {
+		method: string;
+		params: unknown[];
+		anon?: boolean;
+	}) {
+		const message = EJSON.stringify({
+			msg: 'method',
+			id: 1001,
+			method,
+			params,
+		});
+
+		const result = await this.client.post(
+			`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(
+				method
+			)}`,
+			{
+				message,
+			}
+		);
+
+		if (!result.success) {
+			throw new Error(result.error);
+		}
+
+		const msgResult = EJSON.parse(result.message);
+
+		return msgResult.result;
+	}
+
+	protected async methodViaRest(
+		method: string,
+		...params: unknown[]
+	): Promise<unknown> {
+		return this.methodCallRest({ method, params });
+	}
+
+	protected async methodAnonViaRest(
+		method: string,
+		...params: unknown[]
+	): Promise<unknown> {
+		return this.methodCallRest({ method, params, anon: true });
+	}
+
+	protected async httpGet(
+		endpoint: string,
+		query?: URLSearchParams
+	): Promise<unknown> {
+		const qs = query ? `?${new URLSearchParams(query)}` : '';
+
+		const result = await fetch(`${this.host}${endpoint}${qs}`, {
+			method: 'GET',
+			...(query && { body: JSON.stringify(query) }),
+		});
+		return result.json();
 	}
 }

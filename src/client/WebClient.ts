@@ -1,5 +1,3 @@
-import EJSON from 'ejson';
-
 import { config } from '../config';
 import { Subscription } from '../definifitons';
 import { userId } from '../lib/ids';
@@ -14,7 +12,8 @@ export class WebClient extends Client {
 		prom.connected.inc();
 
 		await this.methodAnonViaRest('public-settings/get');
-		await this.methodAnonViaRest('permissions/get');
+
+		await this.httpGet('/api/apps/actionButtons');
 
 		// this is done to simulate web client
 		await this.client.subscribe('meteor.loginServiceConfiguration');
@@ -22,8 +21,8 @@ export class WebClient extends Client {
 
 		// await client.subscribeNotifyAll();
 		await Promise.all(
-			['deleteCustomSound', 'updateCustomSound', 'public-settings-changed'].map(
-				(event) => this.client.subscribe('stream-notify-all', event, false)
+			['public-settings-changed'].map((event) =>
+				this.client.subscribe('stream-notify-all', event, false)
 			)
 		);
 	}
@@ -40,6 +39,8 @@ export class WebClient extends Client {
 			await this.client.subscribeLoggedNotify();
 			await Promise.all(
 				[
+					'deleteCustomSound',
+					'updateCustomSound',
 					'updateEmojiCustom',
 					'deleteEmojiCustom',
 					'deleteCustomUserStatus',
@@ -133,7 +134,7 @@ export class WebClient extends Client {
 			);
 
 			await this.client.get(
-				`users.presence?ids[]=${newIds.join('&ids[]=')}&wtf=`
+				`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`
 			);
 
 			((await this.client.socket) as any).ddp.subscribe(
@@ -160,16 +161,18 @@ export class WebClient extends Client {
 
 		methods.push(['license:getModules']);
 		methods.push(['listCustomSounds']);
-		methods.push(['apps/is-enabled']);
 		methods.push(['listCustomUserStatus']);
 		methods.push(['license:isEnterprise']);
 		methods.push(['loadLocale', 'pt-BR']);
 		methods.push(['getUserRoles']);
-		methods.push(['autoTranslate.getProviderUiMetadata']);
-		methods.push(['autoTranslate.getSupportedLanguages', 'en']);
-		methods.push(['cloud:checkRegisterStatus']);
 		methods.push(['livechat:getRoutingConfig']);
 		methods.push(['rooms/get']);
+		methods.push(['permissions/get']);
+
+		// following requests are performed by admins only, no need to be performed by load test
+		// methods.push(['autoTranslate.getProviderUiMetadata']);
+		// methods.push(['autoTranslate.getSupportedLanguages', 'en']);
+		// methods.push(['cloud:checkRegisterStatus']);
 
 		return methods;
 	}
@@ -255,53 +258,5 @@ export class WebClient extends Client {
 			end({ status: 'error' });
 			endAction({ status: 'error' });
 		}
-	}
-
-	private async methodCallRest({
-		method,
-		params,
-		anon,
-	}: {
-		method: string;
-		params: unknown[];
-		anon?: boolean;
-	}) {
-		const message = EJSON.stringify({
-			msg: 'method',
-			id: 1001,
-			method,
-			params,
-		});
-
-		const result = await this.client.post(
-			`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(
-				method
-			)}`,
-			{
-				message,
-			}
-		);
-
-		if (!result.success) {
-			throw new Error(result.error);
-		}
-
-		const msgResult = EJSON.parse(result.message);
-
-		return msgResult.result;
-	}
-
-	protected async methodViaRest(
-		method: string,
-		...params: unknown[]
-	): Promise<unknown> {
-		return this.methodCallRest({ method, params });
-	}
-
-	protected async methodAnonViaRest(
-		method: string,
-		...params: unknown[]
-	): Promise<unknown> {
-		return this.methodCallRest({ method, params, anon: true });
 	}
 }
