@@ -36,7 +36,7 @@ export class WebClient extends Client {
 		try {
 			const user = await this.client.login(credentials);
 
-			await this.client.subscribeLoggedNotify();
+			// await this.client.subscribeLoggedNotify();
 			await Promise.all(
 				[
 					'deleteCustomSound',
