@@ -54,6 +54,8 @@ export class Client {
 
 	subscribedToLivechat = false;
 
+	loggedIn = false;
+
 	constructor(
 		host: string,
 		type: 'web' | 'android' | 'ios',
@@ -139,6 +141,10 @@ export class Client {
 	}
 
 	async joinRoom(rid = 'GENERAL'): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.roomJoin.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'joinRoom' });
 		try {
@@ -153,6 +159,10 @@ export class Client {
 	}
 
 	async setStatus(): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const status = rand(['online', 'away', 'offline', 'busy']);
 
 		const endAction = prom.actions.startTimer({ action: 'setStatus' });
@@ -165,6 +175,10 @@ export class Client {
 	}
 
 	async read(rid: string): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const endAction = prom.actions.startTimer({ action: 'read' });
 		try {
 			this.client.post('subscriptions.read', { rid });
@@ -235,6 +249,8 @@ export class Client {
 			endAction({ status: 'error' });
 			throw e;
 		}
+
+		this.loggedIn = true;
 	}
 
 	async listenPresence(_userIds: string[]): Promise<void> {
@@ -258,6 +274,10 @@ export class Client {
 	};
 
 	async sendMessage(msg: string, rid: string): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		await this.typing(rid, true);
 		await delay(1000);
 		const endAction = prom.actions.startTimer({ action: 'sendMessage' });
@@ -276,6 +296,10 @@ export class Client {
 	}
 
 	async typing(rid: string, typing: boolean): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		this.client.methodCall(
 			'stream-notify-room',
 			`${rid}/typing`,
@@ -285,6 +309,10 @@ export class Client {
 	}
 
 	async openRoom(rid = 'GENERAL', roomType = 'groups'): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const endAction = prom.actions.startTimer({ action: 'openRoom' });
 		const end = prom.openRoom.startTimer();
 		try {
@@ -363,6 +391,10 @@ export class Client {
 	}
 
 	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
 		try {
 			const routingConfig = await this.client.methodCall(
@@ -379,6 +411,10 @@ export class Client {
 	async getAgentDepartments(): Promise<
 		{ departments: Department[] } | undefined
 	> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
 		try {
 			const departments = await this.client.get(
@@ -393,6 +429,10 @@ export class Client {
 	}
 
 	async getQueuedInquiries(): Promise<{ inquiries: Inquiry[] } | undefined> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'getQueuedInquiries' });
 		try {
 			const inquiries = await this.client.get(
@@ -410,6 +450,10 @@ export class Client {
 	async subscribeDeps(deps: string[]): Promise<void> {
 		if (this.subscribedToLivechat) {
 			return;
+		}
+
+		if (!this.loggedIn) {
+			await this.login();
 		}
 
 		try {
@@ -430,6 +474,10 @@ export class Client {
 	}
 
 	async takeInquiry(id: string): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'takeInquiry' });
 		const endInq = prom.inquiryTaken.startTimer();
 		try {
@@ -445,6 +493,10 @@ export class Client {
 	}
 
 	async getInquiry(id: string): Promise<Inquiry | undefined> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'getOneInquiry' });
 		try {
 			const inq = await this.client.get(`livechat/inquiries.getOne`, {
@@ -459,6 +511,10 @@ export class Client {
 	}
 
 	async getVisitorInfo(vid: string): Promise<Visitor | undefined> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.actions.startTimer({ action: 'getVisitorInfo' });
 		try {
 			const v = await this.client.get(`livechat/visitors.info`, {

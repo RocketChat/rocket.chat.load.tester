@@ -97,6 +97,8 @@ export class WebClient extends Client {
 				this.getLoginMethods().map((params) => this.methodViaRest(...params))
 			);
 
+			this.loggedIn = true;
+
 			const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
 			this.subscriptions = subscriptions as unknown as Subscription[];
@@ -125,6 +127,10 @@ export class WebClient extends Client {
 	}
 
 	async listenPresence(userIds: string[]): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const endAction = prom.actions.startTimer({ action: 'listenPresence' });
 
 		try {
@@ -178,6 +184,10 @@ export class WebClient extends Client {
 	}
 
 	async typing(rid: string, typing: boolean): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		this.client.methodCall(
 			'stream-notify-room',
 			`${rid}/user-activity`,
@@ -187,17 +197,18 @@ export class WebClient extends Client {
 	}
 
 	async openRoom(rid = 'GENERAL'): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.openRoom.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'openRoom' });
 		try {
-			const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
-
-			calls.push(
-				this.client.methodCall('loadHistory', rid, null, 50, new Date())
-			);
-			calls.push(this.client.methodCall('getRoomRoles', rid));
-
-			await Promise.all(calls);
+			await Promise.all([
+				this.subscribeRoom(rid),
+				this.methodViaRest('loadHistory', rid, null, 50, new Date()),
+				this.methodViaRest('getRoomRoles', rid),
+			]);
 
 			await this.read(rid);
 
@@ -211,18 +222,19 @@ export class WebClient extends Client {
 	}
 
 	async openLivechatRoom(rid: string, vid: string): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.openRoom.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'openRoom' });
 		try {
-			const calls: Promise<unknown>[] = [
-				this.client.methodCall('loadHistory', rid, null, 50, new Date()),
-			];
-
-			calls.push(this.client.methodCall('getRoomRoles', rid));
-
-			calls.push(this.getVisitorInfo(vid));
-
-			await Promise.all(calls);
+			await Promise.all([
+				this.subscribeRoom(rid),
+				this.methodViaRest('loadHistory', rid, null, 50, new Date()),
+				this.methodViaRest('getRoomRoles', rid),
+				this.getVisitorInfo(vid),
+			]);
 
 			end({ status: 'success' });
 			endAction({ status: 'success' });
@@ -234,6 +246,10 @@ export class WebClient extends Client {
 	}
 
 	async subscribeRoom(rid: string): Promise<void> {
+		if (!this.loggedIn) {
+			await this.login();
+		}
+
 		const end = prom.roomSubscribe.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'subscribeRoom' });
 		try {

@@ -48,6 +48,8 @@ const {
 	ROUTING_CONFIG_PER_SEC = '10',
 	QUEUED_INQUIRIES_PER_SEC = '0.5',
 	TAKE_INQUIRY_PER_SEC = '1',
+
+	DYNAMIC_LOGIN = 'false',
 } = process.env;
 
 export const config = {
@@ -107,4 +109,6 @@ export const config = {
 	ROUTING_CONFIG_PER_SEC: parseInt(ROUTING_CONFIG_PER_SEC),
 	QUEUED_INQUIRIES_PER_SEC: parseFloat(QUEUED_INQUIRIES_PER_SEC),
 	TAKE_INQUIRY_PER_SEC: parseInt(TAKE_INQUIRY_PER_SEC),
+
+	DYNAMIC_LOGIN: ['true', 'yes'].includes(DYNAMIC_LOGIN),
 };
