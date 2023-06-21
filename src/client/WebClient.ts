@@ -237,7 +237,7 @@ export class WebClient extends Client {
 		const end = prom.roomSubscribe.startTimer();
 		const endAction = prom.actions.startTimer({ action: 'subscribeRoom' });
 		try {
-			await this.client.subscribeRoom(rid);
+			// await this.client.subscribeRoom(rid);
 
 			const topic = 'stream-notify-room';
 			await Promise.all([
