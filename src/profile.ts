@@ -147,11 +147,6 @@ export default (): void => {
 			await client.login();
 		}
 
-		const subscription = client.getRandomSubscription();
-		if (!subscription) {
-			return;
-		}
-
 		// change half the subscriptions to presence
 		const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
 

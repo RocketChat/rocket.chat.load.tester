@@ -1,11 +1,10 @@
-import { config } from '../config';
 import { Subscription } from '../definifitons';
-import { userId } from '../lib/ids';
 import * as prom from '../lib/prom';
-import { getRandomInt } from '../lib/rand';
 import { Client } from './Client';
 
 export class WebClient extends Client {
+	loginPromise: Promise<boolean> | undefined;
+
 	async beforeLogin(): Promise<void> {
 		await this.client.connect({});
 
@@ -28,102 +27,100 @@ export class WebClient extends Client {
 	}
 
 	async login(): Promise<void> {
-		await this.beforeLogin();
-
-		const end = prom.login.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'login' });
-		const { credentials } = this;
-		try {
-			const user = await this.client.login(credentials);
-
-			// await this.client.subscribeLoggedNotify();
-			await Promise.all(
-				[
-					'deleteCustomSound',
-					'updateCustomSound',
-					'updateEmojiCustom',
-					'deleteEmojiCustom',
-					'deleteCustomUserStatus',
-					'updateCustomUserStatus',
-					'banner-changed',
-					'updateAvatar',
-					'Users:NameChanged',
-					'Users:Deleted',
-					'roles-change',
-					'voip.statuschanged',
-					'permissions-changed',
-				].map((event) =>
-					this.client.subscribe('stream-notify-logged', event, false)
-				)
-			);
-
-			// await client.subscribeNotifyUser();
-			await Promise.all(
-				[
-					'uiInteraction',
-					'video-conference',
-					'force_logout',
-					'message',
-					'subscriptions-changed',
-					'notification',
-					'otr',
-					'rooms-changed',
-					'webrtc',
-					'userData',
-				].map((event) =>
-					this.client.subscribe(
-						'stream-notify-user',
-						`${user.id}/${event}`,
-						false
-					)
-				)
-			);
-
-			await Promise.all(
-				[
-					'app/added',
-					'app/removed',
-					'app/updated',
-					'app/settingUpdated',
-					'command/added',
-					'command/disabled',
-					'command/updated',
-					'command/removed',
-					'actions/changed',
-				].map((event) => this.client.subscribe('stream-apps', event, false))
-			);
-
-			await Promise.all(
-				this.getLoginMethods().map((params) => this.methodViaRest(...params))
-			);
-
-			this.loggedIn = true;
-
-			const subscriptions = await this.methodViaRest('subscriptions/get', {});
-
-			this.subscriptions = subscriptions as unknown as Subscription[];
-
-			const manySub = this.getManyPresences();
-
-			await this.listenPresence([
-				...new Set(
-					Array.from({ length: manySub }, () =>
-						userId(getRandomInt(config.HOW_MANY_USERS))
-					)
-				),
-			]);
-
-			// this.loggedInInternal = true;
-			// this.userCount = userCount;
-
-			end({ status: 'success' });
-			endAction({ action: 'login', status: 'success' });
-		} catch (e) {
-			console.error('error during login', e, credentials);
-			end({ status: 'error' });
-			endAction({ action: 'login', status: 'error' });
-			throw e;
+		if (this.loginPromise) {
+			await this.loginPromise;
+			return;
 		}
+
+		this.loginPromise = new Promise(async (resolve) => {
+			await this.beforeLogin();
+
+			const end = prom.login.startTimer();
+			const endAction = prom.actions.startTimer({ action: 'login' });
+			const { credentials } = this;
+			try {
+				const user = await this.client.login(credentials);
+
+				// await this.client.subscribeLoggedNotify();
+				await Promise.all(
+					[
+						'deleteCustomSound',
+						'updateCustomSound',
+						'updateEmojiCustom',
+						'deleteEmojiCustom',
+						'deleteCustomUserStatus',
+						'updateCustomUserStatus',
+						'banner-changed',
+						'updateAvatar',
+						'Users:NameChanged',
+						'Users:Deleted',
+						'roles-change',
+						'voip.statuschanged',
+						'permissions-changed',
+					].map((event) =>
+						this.client.subscribe('stream-notify-logged', event, false)
+					)
+				);
+
+				// await client.subscribeNotifyUser();
+				await Promise.all(
+					[
+						'uiInteraction',
+						'video-conference',
+						'force_logout',
+						'message',
+						'subscriptions-changed',
+						'notification',
+						'otr',
+						'rooms-changed',
+						'webrtc',
+						'userData',
+					].map((event) =>
+						this.client.subscribe(
+							'stream-notify-user',
+							`${user.id}/${event}`,
+							false
+						)
+					)
+				);
+
+				await Promise.all(
+					[
+						'app/added',
+						'app/removed',
+						'app/updated',
+						'app/settingUpdated',
+						'command/added',
+						'command/disabled',
+						'command/updated',
+						'command/removed',
+						'actions/changed',
+					].map((event) => this.client.subscribe('stream-apps', event, false))
+				);
+
+				await Promise.all(
+					this.getLoginMethods().map((params) => this.methodViaRest(...params))
+				);
+
+				this.loggedIn = true;
+
+				const subscriptions = await this.methodViaRest('subscriptions/get', {});
+
+				this.subscriptions = subscriptions as unknown as Subscription[];
+
+				end({ status: 'success' });
+				endAction({ action: 'login', status: 'success' });
+			} catch (e) {
+				console.error('error during login', e, credentials);
+				end({ status: 'error' });
+				endAction({ action: 'login', status: 'error' });
+				throw e;
+			} finally {
+				resolve(true);
+			}
+		});
+
+		await this.loginPromise;
 	}
 
 	async listenPresence(userIds: string[]): Promise<void> {
