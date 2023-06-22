@@ -7,18 +7,15 @@ import { userId } from './lib/ids';
 import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 // import { joinRooms } from './macros/joinRooms';
-import populate, { isFullPopulation } from './populate';
+import { populateDatabase, isFullPopulation } from './populate';
 
 export default (): void => {
 	let clients: Client[];
 
 	const b = new (class extends BenchmarkRunner {
-		private skippedPopulate = false;
-
 		async populate() {
 			if (!config.DATABASE_URL) {
 				console.log('Skip populate, no DATABASE_URL');
-				this.skippedPopulate = true;
 				return;
 			}
 
@@ -35,12 +32,13 @@ export default (): void => {
 				console.log('Checking if the hash already exists');
 
 				if (await users.findOne({ _id: new RegExp(config.hash) })) {
-					console.log('Task skipped');
-					this.skippedPopulate = true;
+					console.log(
+						'Hash for current task already found, skipping DB populate'
+					);
 					return;
 				}
 
-				const results = await populate();
+				const results = await populateDatabase();
 
 				if (!isFullPopulation(results)) {
 					return;
@@ -67,10 +65,6 @@ export default (): void => {
 
 		async setup() {
 			clients = await getClients(config.HOW_MANY_USERS);
-
-			// if it didn't have to populate there is not need to join rooms, so skip
-			// if (this.skippedPopulate) {
-			// }
 
 			// if (config.JOIN_ROOM) {
 			// await joinRooms(clients);

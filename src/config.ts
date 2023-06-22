@@ -52,8 +52,10 @@ const {
 	DYNAMIC_LOGIN = 'false',
 } = process.env;
 
+const taskId = String(TASK_ID || net || '1');
+
 export const config = {
-	// HOW_MANY,
+	RANDOM_HASH: Math.random().toString(36).substring(2, 15),
 	HOW_MANY_USERS: parseInt(HOW_MANY_USERS),
 	USERS_PER_ROOM,
 	DATABASE_URL,
@@ -67,7 +69,7 @@ export const config = {
 		SUBSCRIPTION_ID,
 		ROOM_ID,
 		USER_ID,
-		TASK_ID: String(TASK_ID || net || '1'),
+		TASK_ID: taskId,
 		CLUSTER_GROUP,
 		version: '1.0.0',
 	}),
@@ -75,7 +77,7 @@ export const config = {
 	SUBSCRIPTION_ID,
 	ROOM_ID,
 	USER_ID,
-	TASK_ID: String(TASK_ID || net || '1'),
+	TASK_ID: taskId,
 	CLUSTER_GROUP,
 	IGNORE_ROOMS: IGNORE_ROOMS.split(','),
 
