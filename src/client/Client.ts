@@ -1,12 +1,16 @@
+import fs from 'fs';
+import path from 'path';
 import { URLSearchParams } from 'url';
 
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 import EJSON from 'ejson';
-import fetch from 'node-fetch';
+import FormData from 'form-data';
+import fetch, { BodyInit, RequestInit } from 'node-fetch';
 
 import { config } from '../config';
 import { Subscription, Department, Inquiry, Visitor } from '../definifitons';
 import { delay } from '../lib/delay';
+import { getRandomFileInFolder } from '../lib/file';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
@@ -275,6 +279,45 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
+	async uploadFile({
+		rid,
+		authToken,
+		userId,
+	}: {
+		rid: string;
+		authToken: string;
+		userId: string;
+	}): Promise<void> {
+		await delay(8000);
+		const folderPath = path.join(__dirname, '..', '..', 'assets');
+
+		const { filePath } = getRandomFileInFolder(folderPath);
+
+		const endAction = prom.actions.startTimer({ action: 'uploadFile' });
+		const end = prom.messages.startTimer();
+		try {
+			const fileFormData = new FormData();
+
+			fileFormData.append('file', fs.createReadStream(filePath));
+
+			await this.httpPost(`/api/v1/rooms.upload/${rid}`, {
+				body: fileFormData as unknown as BodyInit,
+				headers: {
+					'X-Auth-Token': authToken,
+					'X-User-Id': userId,
+					'Content-Type': `multipart/form-data; boundary=${fileFormData.getBoundary()}`,
+				},
+			});
+
+			end({ status: 'success' });
+			endAction({ status: 'success' });
+		} catch (e) {
+			end({ status: 'error' });
+			endAction({ status: 'error' });
+			throw e;
+		}
+	}
+
 	async typing(rid: string, typing: boolean): Promise<void> {
 		this.client.methodCall(
 			'stream-notify-room',
@@ -528,6 +571,17 @@ export class Client {
 		const result = await fetch(`${this.host}${endpoint}${qs}`, {
 			method: 'GET',
 			...(query && { body: JSON.stringify(query) }),
+		});
+		return result.json();
+	}
+
+	protected async httpPost(
+		endpoint: string,
+		init?: RequestInit
+	): Promise<unknown> {
+		const result = await fetch(`${this.host}${endpoint}`, {
+			method: 'POST',
+			...init,
 		});
 		return result.json();
 	}

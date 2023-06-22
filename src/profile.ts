@@ -1,3 +1,4 @@
+import { ILoginResultAPI } from '@rocket.chat/sdk/interfaces';
 import { MongoClient } from 'mongodb';
 
 import { BenchmarkRunner } from './BenchmarkRunner';
@@ -82,6 +83,7 @@ export default (): void => {
 		openRoom: config.OPEN_ROOM_PER_SECOND,
 		setUserStatus: config.SET_STATUS_PER_SECOND,
 		subscribePresence: config.SUBSCRIBE_PRESENCE_PER_SECOND,
+		uploadFile: config.FILES_PER_SECOND,
 	});
 
 	b.on('ready', async () => {
@@ -146,6 +148,32 @@ export default (): void => {
 		userIds.push(...newIds);
 
 		client.listenPresence(userIds);
+	});
+
+	b.on('uploadFile', async () => {
+		try {
+			const client = rand(clients);
+			const subscription = client.getRandomSubscription();
+
+			if (!subscription) {
+				return;
+			}
+
+			const { authToken, userId } = client.client.currentLogin as {
+				username: string;
+				userId: string;
+				authToken: string;
+				result: ILoginResultAPI;
+			};
+
+			await client.uploadFile({
+				rid: subscription.rid,
+				authToken,
+				userId,
+			});
+		} catch (error) {
+			console.error('Error uploading file', error);
+		}
 	});
 
 	b.run();

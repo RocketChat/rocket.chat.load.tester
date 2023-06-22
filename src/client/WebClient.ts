@@ -70,6 +70,7 @@ export class WebClient extends Client {
 					'rooms-changed',
 					'webrtc',
 					'userData',
+					'uploadFile',
 				].map((event) =>
 					this.client.subscribe(
 						'stream-notify-user',
