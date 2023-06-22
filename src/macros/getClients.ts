@@ -24,6 +24,19 @@ export const getClients = async (
 
 	console.log('Logging in', size, 'users');
 
+	if (config.DYNAMIC_LOGIN) {
+		console.log('Creating a total of dynamic clients:', users.length);
+
+		return users.map((index) =>
+			ClientBase.getClient(
+				HOST_URL,
+				CLIENT_TYPE as 'web' | 'android' | 'ios',
+				index as number,
+				userPrefix
+			)
+		);
+	}
+
 	const { results } = await PromisePool.withConcurrency(config.LOGIN_BATCH)
 		.for(users)
 		.handleError((error) => {

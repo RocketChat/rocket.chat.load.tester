@@ -51,6 +51,7 @@ const {
 
 	FILES_PER_SECOND = '10',
 	FILE_UPLOADING_RATE = '0.00115428571', // ='0.001428571,
+	DYNAMIC_LOGIN = 'false',
 } = process.env;
 
 export const config = {
@@ -114,4 +115,5 @@ export const config = {
 	FILES_PER_SECOND: FILE_UPLOADING_RATE
 		? parseInt(HOW_MANY_USERS) * parseFloat(FILE_UPLOADING_RATE)
 		: parseInt(FILES_PER_SECOND),
+	DYNAMIC_LOGIN: ['true', 'yes'].includes(DYNAMIC_LOGIN),
 };

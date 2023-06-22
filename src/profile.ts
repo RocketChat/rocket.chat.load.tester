@@ -92,6 +92,10 @@ export default (): void => {
 
 	b.on('message', async () => {
 		const client = rand(clients);
+		if (!client.loggedIn) {
+			await client.login();
+		}
+
 		const subscription = client.getRandomSubscription();
 
 		if (!subscription) {
@@ -104,34 +108,45 @@ export default (): void => {
 		}
 	});
 
-	b.on('setUserStatus', () => {
+	b.on('setUserStatus', async () => {
 		const client = rand(clients);
-		client.setStatus();
+		if (!client.loggedIn) {
+			await client.login();
+		}
+
+		await client.setStatus();
 	});
 
-	b.on('readMessages', () => {
+	b.on('readMessages', async () => {
 		const client = rand(clients);
+		if (!client.loggedIn) {
+			await client.login();
+		}
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
 		}
-		client.read(subscription.rid);
+
+		await client.read(subscription.rid);
 	});
 
-	b.on('openRoom', () => {
+	b.on('openRoom', async () => {
 		const client = rand(clients);
+		if (!client.loggedIn) {
+			await client.login();
+		}
+
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
 		}
-		client.openRoom(subscription.rid);
+		await client.openRoom(subscription.rid);
 	});
 
 	b.on('subscribePresence', async () => {
 		const client = rand(clients);
-		const subscription = client.getRandomSubscription();
-		if (!subscription) {
-			return;
+		if (!client.loggedIn) {
+			await client.login();
 		}
 
 		// change half the subscriptions to presence
@@ -147,7 +162,7 @@ export default (): void => {
 
 		userIds.push(...newIds);
 
-		client.listenPresence(userIds);
+		await client.listenPresence(userIds);
 	});
 
 	b.on('uploadFile', async () => {
