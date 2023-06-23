@@ -1,5 +1,5 @@
 module.exports = {
-	extends: '@rocket.chat/eslint-config-alt/typescript',
+	extends: '@rocket.chat/eslint-config',
 	env: {
 		jest: true,
 	},
@@ -8,18 +8,18 @@ module.exports = {
 			files: ['**/*.ts', '**/*.tsx'],
 			rules: {
 				'@typescript-eslint/indent': ['off'],
-				"@typescript-eslint/no-misused-promises": [
-					"error",
+				'@typescript-eslint/no-misused-promises': [
+					'error',
 					{
-						"checksVoidReturn": {
-							"arguments": false
-						}
-					}
+						checksVoidReturn: {
+							arguments: false,
+						},
+					},
 				],
-				"@typescript-eslint/no-floating-promises": "error",
+				'@typescript-eslint/no-floating-promises': 'error',
 			},
-			"parserOptions": {
-				"project": ["./tsconfig.json"]
+			parserOptions: {
+				project: ['./tsconfig.json'],
 			},
 		},
 	],
