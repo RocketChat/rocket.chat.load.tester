@@ -12,6 +12,14 @@ import { populateDatabase, isFullPopulation } from './populate';
 export default (): void => {
 	let clients: Client[];
 
+	async function getLoggedInClient() {
+		const client = rand(clients);
+		if (!client.loggedIn) {
+			await client.login();
+		}
+		return client;
+	}
+
 	const b = new (class extends BenchmarkRunner {
 		async populate() {
 			if (!config.DATABASE_URL) {
@@ -32,9 +40,7 @@ export default (): void => {
 				console.log('Checking if the hash already exists');
 
 				if (await users.findOne({ _id: new RegExp(config.hash) })) {
-					console.log(
-						'Hash for current task already found, skipping DB populate'
-					);
+					console.log('Hash for current task already found, skipping DB populate');
 					return;
 				}
 
@@ -45,7 +51,7 @@ export default (): void => {
 				}
 
 				console.log(
-					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`
+					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`,
 				);
 
 				const subscriptions = db.collection('rocketchat_subscription');
@@ -83,10 +89,7 @@ export default (): void => {
 	});
 
 	b.on('message', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		const subscription = client.getRandomSubscription();
 
@@ -101,19 +104,14 @@ export default (): void => {
 	});
 
 	b.on('setUserStatus', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		await client.setStatus();
 	});
 
 	b.on('readMessages', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
+
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
@@ -123,10 +121,7 @@ export default (): void => {
 	});
 
 	b.on('openRoom', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
@@ -136,10 +131,7 @@ export default (): void => {
 	});
 
 	b.on('subscribePresence', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		// change half the subscriptions to presence
 		const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
@@ -157,8 +149,7 @@ export default (): void => {
 		await client.listenPresence(userIds);
 	});
 
-	b.run()
-		.catch((e) => {
-			console.error('Error during run', e);
-		});
+	b.run().catch((e) => {
+		console.error('Error during run', e);
+	});
 };
