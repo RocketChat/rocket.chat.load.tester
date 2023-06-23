@@ -31,7 +31,7 @@ export class WebClient extends Client {
 			return this.loginPromise;
 		}
 
-		this.loginPromise = new Promise(async (resolve) => {
+		this.loginPromise = new Promise(async (resolve, reject) => {
 			const end = prom.login.startTimer();
 			const endAction = prom.actions.startTimer({ action: 'login' });
 
@@ -111,13 +111,13 @@ export class WebClient extends Client {
 
 				end({ status: 'success' });
 				endAction({ action: 'login', status: 'success' });
-			} catch (e) {
-				console.error('error during login', e, credentials);
+
+				resolve();
+			} catch (error) {
 				end({ status: 'error' });
 				endAction({ action: 'login', status: 'error' });
-				throw e;
-			} finally {
-				resolve();
+
+				reject({ error, credentials });
 			}
 		});
 
@@ -186,7 +186,7 @@ export class WebClient extends Client {
 			await this.login();
 		}
 
-		this.client.methodCall(
+		await this.client.methodCall(
 			'stream-notify-room',
 			`${rid}/user-activity`,
 			this.client.username,

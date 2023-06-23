@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2018",
     "module": "ESNext",
     "lib": ["es2019"],
     "declaration": true,
@@ -15,8 +15,8 @@
     "resolveJsonModule": true,
     "typeRoots": ["./types"],
     "downlevelIteration": true,
-    "types": ["node"]
   },
+  "include": ["./src/**/*"],
   "files": ["./src/index.ts", "./types/index.d.ts"],
   "ts-node": {
     "files": true,

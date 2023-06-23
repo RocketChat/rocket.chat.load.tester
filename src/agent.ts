@@ -204,5 +204,8 @@ export default (): void => {
 		}
 	});
 
-	b.run();
+	b.run()
+		.catch((e) => {
+			console.error('Error during run', e);
+		});
 };

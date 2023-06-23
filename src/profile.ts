@@ -157,5 +157,8 @@ export default (): void => {
 		await client.listenPresence(userIds);
 	});
 
-	b.run();
+	b.run()
+		.catch((e) => {
+			console.error('Error during run', e);
+		});
 };
