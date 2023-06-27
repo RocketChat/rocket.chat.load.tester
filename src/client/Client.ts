@@ -5,10 +5,11 @@ import { URLSearchParams } from 'url';
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 import EJSON from 'ejson';
 import FormData from 'form-data';
-import fetch, { BodyInit, RequestInit } from 'node-fetch';
+import type { BodyInit, RequestInit } from 'node-fetch';
+import fetch from 'node-fetch';
 
 import { config } from '../config';
-import { Subscription, Department, Inquiry, Visitor } from '../definifitons';
+import type { Subscription, Department, Inquiry, Visitor } from '../definifitons';
 import { delay } from '../lib/delay';
 import { getRandomFileInFolder } from '../lib/file';
 import { username, email } from '../lib/ids';
@@ -27,10 +28,7 @@ const logger = {
 
 const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
 
-const useSsl =
-	typeof SSL_ENABLED !== 'undefined'
-		? ['yes', 'true'].includes(SSL_ENABLED)
-		: true;
+const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL_ENABLED) : true;
 
 export type ClientType = 'web' | 'android' | 'ios';
 export class Client {
@@ -65,7 +63,7 @@ export class Client {
 		type: 'web' | 'android' | 'ios',
 		current: number,
 		extraPrefix = '',
-		credentials?: { username: string; password: string; email: string }
+		credentials?: { username: string; password: string; email: string },
 	) {
 		this.host = host;
 		this.type = type;
@@ -93,10 +91,7 @@ export class Client {
 		switch (this.type) {
 			case 'android':
 			case 'ios':
-				await Promise.all([
-					this.client.get('settings.public'),
-					this.client.get('settings.oauth'),
-				]);
+				await Promise.all([this.client.get('settings.public'), this.client.get('settings.oauth')]);
 				break;
 		}
 
@@ -104,11 +99,7 @@ export class Client {
 	}
 
 	getManyPresences(): number {
-		return Math.min(
-			config.HOW_MANY_USERS,
-			config.INITIAL_SUBSCRIBE_MIN,
-			config.HOW_MANY_USERS * config.INITIAL_SUBSCRIBE_RATIO
-		);
+		return Math.min(config.HOW_MANY_USERS, config.INITIAL_SUBSCRIBE_MIN, config.HOW_MANY_USERS * config.INITIAL_SUBSCRIBE_RATIO);
 	}
 
 	protected get credentials(): {
@@ -206,19 +197,10 @@ export class Client {
 				case 'android':
 				case 'ios':
 					await Promise.all(
-						['rooms-changed', 'subscriptions-changed'].map((stream) =>
-							this.client.subscribe(
-								'stream-notify-user',
-								`${user.id}/${stream}`
-							)
-						)
+						['rooms-changed', 'subscriptions-changed'].map((stream) => this.client.subscribe('stream-notify-user', `${user.id}/${stream}`)),
 					);
 
-					await Promise.all(
-						['userData', 'activeUsers'].map((stream) =>
-							this.client.subscribe(stream, '')
-						)
-					);
+					await Promise.all(['userData', 'activeUsers'].map((stream) => this.client.subscribe(stream, '')));
 
 					await Promise.all([
 						this.client.get('me'),
@@ -230,17 +212,9 @@ export class Client {
 					break;
 			}
 
-			await Promise.all(
-				this.getLoginSubs().map(([stream, ...params]) =>
-					this.client.subscribe(stream, ...params)
-				)
-			);
+			await Promise.all(this.getLoginSubs().map(([stream, ...params]) => this.client.subscribe(stream, ...params)));
 
-			await Promise.all(
-				this.getLoginMethods().map((params) =>
-					this.client.methodCall(...params)
-				)
-			);
+			await Promise.all(this.getLoginMethods().map((params) => this.client.methodCall(...params)));
 
 			// client.loggedInInternal = true;
 			// client.userCount = userCount;
@@ -267,11 +241,7 @@ export class Client {
 		return methods;
 	}
 
-	protected getLoginSubs = (): [
-		string,
-		string,
-		{ useCollection: false; args: [] }
-	][] => {
+	protected getLoginSubs = (): [string, string, { useCollection: false; args: [] }][] => {
 		const subs: [string, string, { useCollection: false; args: [] }][] = [];
 
 		return subs;
@@ -299,19 +269,16 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
-	async uploadFile({
-		rid,
-		authToken,
-		userId,
-	}: {
-		rid: string;
-		authToken: string;
-		userId: string;
-	}): Promise<void> {
-		await delay(8000);
+	async uploadFile({ rid }: { rid: string }): Promise<void> {
+		if (!this.client.currentLogin) {
+			return;
+		}
+
 		const folderPath = path.join(__dirname, '..', '..', 'assets');
 
 		const { filePath } = getRandomFileInFolder(folderPath);
+
+		const { authToken, userId } = this.client.currentLogin;
 
 		const endAction = prom.actions.startTimer({ action: 'uploadFile' });
 		const end = prom.messages.startTimer();
@@ -343,12 +310,7 @@ export class Client {
 			await this.login();
 		}
 
-		await this.client.methodCall(
-			'stream-notify-room',
-			`${rid}/typing`,
-			this.client.username,
-			typing
-		);
+		await this.client.methodCall('stream-notify-room', `${rid}/typing`, this.client.username, typing);
 	}
 
 	async openRoom(rid = 'GENERAL', roomType = 'groups'): Promise<void> {
@@ -390,19 +352,14 @@ export class Client {
 
 	getRandomSubscription(): Subscription {
 		const subscriptions = this.subscriptions.filter(
-			(sub) =>
-				config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
-				config.IGNORE_ROOMS.indexOf(sub.name) === -1
+			(sub) => config.IGNORE_ROOMS.indexOf(sub.rid) === -1 && config.IGNORE_ROOMS.indexOf(sub.name) === -1,
 		);
 		return rand(subscriptions);
 	}
 
 	getRandomLivechatSubscription(): Subscription {
 		const subscriptions = this.subscriptions.filter(
-			(sub) =>
-				config.IGNORE_ROOMS.indexOf(sub.rid) === -1 &&
-				config.IGNORE_ROOMS.indexOf(sub.name) === -1 &&
-				sub.t === 'l'
+			(sub) => config.IGNORE_ROOMS.indexOf(sub.rid) === -1 && config.IGNORE_ROOMS.indexOf(sub.name) === -1 && sub.t === 'l',
 		);
 		return rand(subscriptions);
 	}
@@ -423,11 +380,7 @@ export class Client {
 			end({ status: 'success' });
 			endAction({ status: 'success' });
 		} catch (e) {
-			console.error(
-				'error subscribing room',
-				{ uid: this.client.userId, rid },
-				e
-			);
+			console.error('error subscribing room', { uid: this.client.userId, rid }, e);
 			end({ status: 'error' });
 			endAction({ status: 'error' });
 		}
@@ -440,9 +393,7 @@ export class Client {
 
 		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
 		try {
-			const routingConfig = await this.client.methodCall(
-				'livechat:getRoutingConfig'
-			);
+			const routingConfig = await this.client.methodCall('livechat:getRoutingConfig');
 
 			end({ status: 'success' });
 			return routingConfig;
@@ -451,18 +402,14 @@ export class Client {
 		}
 	}
 
-	async getAgentDepartments(): Promise<
-		{ departments: Department[] } | undefined
-	> {
+	async getAgentDepartments(): Promise<{ departments: Department[] } | undefined> {
 		if (!this.loggedIn) {
 			await this.login();
 		}
 
 		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
 		try {
-			const departments = await this.client.get(
-				`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`
-			);
+			const departments = await this.client.get(`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`);
 
 			end({ status: 'success' });
 			return departments;
@@ -478,10 +425,7 @@ export class Client {
 
 		const end = prom.actions.startTimer({ action: 'getQueuedInquiries' });
 		try {
-			const inquiries = await this.client.get(
-				`livechat/inquiries.queuedForUser`,
-				{ userId: this.client.userId }
-			);
+			const inquiries = await this.client.get(`livechat/inquiries.queuedForUser`, { userId: this.client.userId });
 
 			end({ status: 'success' });
 			return inquiries;
@@ -505,8 +449,7 @@ export class Client {
 			await Promise.all([
 				this.client.subscribe(topic, 'public'), // always to public
 				...deps.map(
-					(department) =>
-						this.client.subscribe(topic, `department/${department}`) // and to deps, if any
+					(department) => this.client.subscribe(topic, `department/${department}`), // and to deps, if any
 				),
 			]);
 			this.subscribedToLivechat = true;
@@ -570,15 +513,7 @@ export class Client {
 		}
 	}
 
-	private async methodCallRest({
-		method,
-		params,
-		anon,
-	}: {
-		method: string;
-		params: unknown[];
-		anon?: boolean;
-	}) {
+	private async methodCallRest({ method, params, anon }: { method: string; params: unknown[]; anon?: boolean }) {
 		const message = EJSON.stringify({
 			msg: 'method',
 			id: 1001,
@@ -586,14 +521,9 @@ export class Client {
 			params,
 		});
 
-		const result = await this.client.post(
-			`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(
-				method
-			)}`,
-			{
-				message,
-			}
-		);
+		const result = await this.client.post(`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(method)}`, {
+			message,
+		});
 
 		if (!result.success) {
 			throw new Error(result.error);
@@ -604,24 +534,15 @@ export class Client {
 		return msgResult.result;
 	}
 
-	protected async methodViaRest(
-		method: string,
-		...params: unknown[]
-	): Promise<unknown> {
+	protected async methodViaRest(method: string, ...params: unknown[]): Promise<unknown> {
 		return this.methodCallRest({ method, params });
 	}
 
-	protected async methodAnonViaRest(
-		method: string,
-		...params: unknown[]
-	): Promise<unknown> {
+	protected async methodAnonViaRest(method: string, ...params: unknown[]): Promise<unknown> {
 		return this.methodCallRest({ method, params, anon: true });
 	}
 
-	protected async httpGet(
-		endpoint: string,
-		query?: URLSearchParams
-	): Promise<unknown> {
+	protected async httpGet(endpoint: string, query?: URLSearchParams): Promise<unknown> {
 		const qs = query ? `?${new URLSearchParams(query)}` : '';
 
 		const result = await fetch(`${this.host}${endpoint}${qs}`, {
@@ -631,10 +552,7 @@ export class Client {
 		return result.json();
 	}
 
-	protected async httpPost(
-		endpoint: string,
-		init?: RequestInit
-	): Promise<unknown> {
+	protected async httpPost(endpoint: string, init?: RequestInit): Promise<unknown> {
 		const result = await fetch(`${this.host}${endpoint}`, {
 			method: 'POST',
 			...init,
