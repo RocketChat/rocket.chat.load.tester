@@ -43,6 +43,14 @@ export abstract class BenchmarkRunner extends Emitter<
 		super();
 		this.eventsRate = new Map(Object.entries(configuration)) as Map<EventKeys, number>;
 
+		const maxLabelLength = [...this.eventsRate].reduce((max, [key]) => Math.max(max, key.length), 0);
+
+		console.log('Events configuration:');
+		for (const [event, rate] of this.eventsRate) {
+			console.log(`${event.padStart(maxLabelLength)} -> ${rate} events per second`);
+		}
+		console.log('-------------------');
+
 		this.on('ready', () => this.turnOnTimers());
 		this.on('error', (error: unknown) => {
 			console.error(error);
