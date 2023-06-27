@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 
 type FileInformation = {
 	fileName: string;
@@ -7,19 +8,24 @@ type FileInformation = {
 	filePath: string;
 };
 
-export const getRandomFileInFolder = (folderPath: string): FileInformation => {
+export const getRandomFileFromFolder = (folderPath: string): { fileName: string; fullPath: string } => {
 	const files = fs.readdirSync(folderPath);
 
 	const randomIndex = Math.floor(Math.random() * files.length);
 	const randomFile = files[randomIndex];
 
-	const filePath = `${folderPath}/${randomFile}`;
-	const fileContent = fs.readFileSync(filePath);
+	return { fileName: randomFile, fullPath: path.join(folderPath, randomFile) };
+};
+
+export const getRandomFileInFolder = (folderPath: string): FileInformation => {
+	const { fileName, fullPath } = getRandomFileFromFolder(folderPath);
+
+	const fileContent = fs.readFileSync(fullPath);
 
 	return {
-		fileName: randomFile,
+		fileName,
 		fileSize: fileContent.length,
 		fileContent,
-		filePath,
+		filePath: fullPath,
 	};
 };

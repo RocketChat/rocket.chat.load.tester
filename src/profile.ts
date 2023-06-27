@@ -159,9 +159,7 @@ export default (): void => {
 				return;
 			}
 
-			await client.uploadFile({
-				rid: subscription.rid,
-			});
+			await client.uploadFile(subscription.rid);
 		} catch (error) {
 			console.error('Error uploading file', error);
 		}

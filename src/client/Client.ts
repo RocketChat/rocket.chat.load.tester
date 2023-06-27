@@ -11,7 +11,7 @@ import fetch from 'node-fetch';
 import { config } from '../config';
 import type { Subscription, Department, Inquiry, Visitor } from '../definifitons';
 import { delay } from '../lib/delay';
-import { getRandomFileInFolder } from '../lib/file';
+import { getRandomFileFromFolder } from '../lib/file';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
@@ -269,19 +269,18 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
-	async uploadFile({ rid }: { rid: string }): Promise<void> {
+	async uploadFile(rid: string): Promise<void> {
 		if (!this.client.currentLogin) {
 			return;
 		}
 
 		const folderPath = path.join(__dirname, '..', '..', 'assets');
 
-		const { filePath } = getRandomFileInFolder(folderPath);
+		const { fullPath: filePath } = getRandomFileFromFolder(folderPath);
 
 		const { authToken, userId } = this.client.currentLogin;
 
 		const endAction = prom.actions.startTimer({ action: 'uploadFile' });
-		const end = prom.messages.startTimer();
 		try {
 			const fileFormData = new FormData();
 
@@ -296,10 +295,8 @@ export class Client {
 				},
 			});
 
-			end({ status: 'success' });
 			endAction({ status: 'success' });
 		} catch (e) {
-			end({ status: 'error' });
 			endAction({ status: 'error' });
 			throw e;
 		}

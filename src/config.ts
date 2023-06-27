@@ -46,7 +46,8 @@ const {
 	TAKE_INQUIRY_PER_SEC = '1',
 
 	FILES_PER_SECOND = '10',
-	FILE_UPLOADING_RATE = '0.00115428571', // ='0.001428571,
+	FILE_UPLOADING_RATE = '0,0001', // ~8 files per day per user
+
 	DYNAMIC_LOGIN = 'false',
 } = process.env;
 
@@ -98,8 +99,7 @@ export const config = {
 	QUEUED_INQUIRIES_PER_SEC: parseFloat(QUEUED_INQUIRIES_PER_SEC),
 	TAKE_INQUIRY_PER_SEC: parseInt(TAKE_INQUIRY_PER_SEC),
 
-	FILES_PER_SECOND: FILE_UPLOADING_RATE
-		? parseInt(HOW_MANY_USERS) * parseFloat(FILE_UPLOADING_RATE)
-		: parseInt(FILES_PER_SECOND),
+	FILES_PER_SECOND: FILE_UPLOADING_RATE ? parseInt(HOW_MANY_USERS) * parseFloat(FILE_UPLOADING_RATE) : parseInt(FILES_PER_SECOND),
+
 	DYNAMIC_LOGIN: ['true', 'yes'].includes(DYNAMIC_LOGIN),
 };
