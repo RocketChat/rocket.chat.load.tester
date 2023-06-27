@@ -1,5 +1,5 @@
 import { config } from './config';
-import { Room, Subscription, User, Storable } from './definifitons';
+import type { Room, Subscription, User, Storable } from './definifitons';
 import { roomId, subscriptionId, username, email, userId } from './lib/ids';
 
 const today = new Date();
@@ -38,7 +38,7 @@ function createUser(
 			[k: string]: unknown;
 		};
 		onlyUsers?: boolean;
-	}
+	},
 ) {
 	if (cache[uid]) {
 		return cache[uid];
@@ -112,7 +112,7 @@ const produceRooms = async (
 			[k: string]: unknown;
 		};
 		onlyUsers?: boolean;
-	}
+	},
 ): Promise<{ rooms: any[]; users: any[]; subscriptions: any[] }> => {
 	const result: { rooms: any[]; users: Set<any>; subscriptions: any[] } = {
 		rooms: [],
@@ -124,11 +124,7 @@ const produceRooms = async (
 		const newRoom = createRoom(roomCounter, usersPerRoom, prefix);
 		result.rooms.push(newRoom);
 		// users starts in 0
-		for (
-			let userCounter = 0;
-			userCounter < usersPerRoom;
-			userCounter++, counter++
-		) {
+		for (let userCounter = 0; userCounter < usersPerRoom; userCounter++, counter++) {
 			const uid = userId(counter, options?.userProps?.extraPrefix);
 			const newUser = createUser(uid, counter, newRoom, options);
 
@@ -143,7 +139,6 @@ const produceRooms = async (
 const produceUsers = async (
 	totalRooms: number,
 	usersPerRoom: number,
-	prefix: string,
 	options?: {
 		userProps?: {
 			roles?: string[];
@@ -151,7 +146,7 @@ const produceUsers = async (
 			[k: string]: unknown;
 		};
 		onlyUsers?: boolean;
-	}
+	},
 ): Promise<{ users: Storable<User>[] }> => {
 	const total = totalRooms * usersPerRoom;
 	const users: Storable<User>[] = [];
@@ -185,19 +180,14 @@ export async function populateDatabase(options?: {
 	const { HOW_MANY_USERS, USERS_PER_ROOM, hash } = config;
 
 	if (options?.onlyUsers) {
-		return produceUsers(
-			Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
-			parseInt(USERS_PER_ROOM),
-			hash,
-			options
-		);
+		return produceUsers(Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)), parseInt(USERS_PER_ROOM), options);
 	}
 
 	const { rooms, users, subscriptions } = await produceRooms(
 		Math.ceil(HOW_MANY_USERS / parseInt(USERS_PER_ROOM)),
 		parseInt(USERS_PER_ROOM),
 		hash,
-		options
+		options,
 	);
 	return { rooms, users, subscriptions };
 }
@@ -209,9 +199,8 @@ export const isOnlyUserPopulation = (
 				users: Storable<User>[];
 				subscriptions: Storable<Subscription>[];
 		  }
-		| { users: Storable<User>[] }
-): result is { users: Storable<User>[] } =>
-	'users' in result && !('rooms' in result);
+		| { users: Storable<User>[] },
+): result is { users: Storable<User>[] } => 'users' in result && !('rooms' in result);
 
 export const isFullPopulation = (
 	result:
@@ -220,7 +209,7 @@ export const isFullPopulation = (
 				users: Storable<User>[];
 				subscriptions: Storable<Subscription>[];
 		  }
-		| { users: Storable<User>[] }
+		| { users: Storable<User>[] },
 ): result is {
 	rooms: Storable<Room>[];
 	users: Storable<User>[];

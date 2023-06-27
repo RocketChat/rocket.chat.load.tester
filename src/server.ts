@@ -73,7 +73,7 @@ server.on('listening', onListening);
 app.use(
 	bodyparser({
 		enableTypes: ['json', 'form', 'text'],
-	})
+	}),
 );
 app.use(json());
 // app.use(logger());

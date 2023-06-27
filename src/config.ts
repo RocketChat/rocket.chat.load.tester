@@ -4,9 +4,7 @@ import { hash } from './lib/hash';
 
 const nets = Object.values(networkInterfaces()).flatMap((net) => net);
 
-const net = nets
-	.map((net) => net && net.family === 'IPv4' && !net.internal && net.address)
-	.filter(Boolean)[0];
+const net = nets.map((net) => net && net.family === 'IPv4' && !net.internal && net.address).filter(Boolean)[0];
 
 const {
 	// HOW_MANY = '100',
@@ -84,21 +82,13 @@ export const config = {
 	INITIAL_SUBSCRIBE_RATIO: parseFloat(INITIAL_SUBSCRIBE_RATIO),
 	INITIAL_SUBSCRIBE_MIN: parseInt(INITIAL_SUBSCRIBE_MIN),
 
-	MESSAGES_PER_SECOND: MESSAGE_SENDING_RATE
-		? parseInt(HOW_MANY_USERS) * parseFloat(MESSAGE_SENDING_RATE)
-		: parseInt(MESSAGES_PER_SECOND),
+	MESSAGES_PER_SECOND: MESSAGE_SENDING_RATE ? parseInt(HOW_MANY_USERS) * parseFloat(MESSAGE_SENDING_RATE) : parseInt(MESSAGES_PER_SECOND),
 
-	SET_STATUS_PER_SECOND: SET_STATUS_RATE
-		? parseInt(HOW_MANY_USERS) * parseFloat(SET_STATUS_RATE)
-		: parseInt(SET_STATUS_PER_SECOND),
+	SET_STATUS_PER_SECOND: SET_STATUS_RATE ? parseInt(HOW_MANY_USERS) * parseFloat(SET_STATUS_RATE) : parseInt(SET_STATUS_PER_SECOND),
 
-	OPEN_ROOM_PER_SECOND: OPEN_ROOM_RATE
-		? parseInt(HOW_MANY_USERS) * parseFloat(OPEN_ROOM_RATE)
-		: parseInt(OPEN_ROOM_PER_SECOND),
+	OPEN_ROOM_PER_SECOND: OPEN_ROOM_RATE ? parseInt(HOW_MANY_USERS) * parseFloat(OPEN_ROOM_RATE) : parseInt(OPEN_ROOM_PER_SECOND),
 
-	READ_MESSAGE_PER_SECOND: READ_MESSAGE_RATE
-		? parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE)
-		: parseInt(READ_MESSAGE_PER_SECOND),
+	READ_MESSAGE_PER_SECOND: READ_MESSAGE_RATE ? parseInt(HOW_MANY_USERS) * parseFloat(READ_MESSAGE_RATE) : parseInt(READ_MESSAGE_PER_SECOND),
 
 	SUBSCRIBE_PRESENCE_PER_SECOND: SUBSCRIBE_PRESENCE_RATE
 		? parseInt(HOW_MANY_USERS) * parseFloat(SUBSCRIBE_PRESENCE_RATE)

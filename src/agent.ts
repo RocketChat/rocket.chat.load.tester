@@ -1,7 +1,8 @@
-import { MongoClient, Db } from 'mongodb';
+import type { Db } from 'mongodb';
+import { MongoClient } from 'mongodb';
 
 import { BenchmarkRunner } from './BenchmarkRunner';
-import { Client } from './client/Client';
+import type { Client } from './client/Client';
 import { config } from './config';
 import { rand } from './lib/rand';
 import { getClients } from './macros/getClients';
@@ -109,24 +110,20 @@ export default (): void => {
 								_id: new RegExp(`${config.hash}${this.extraPrefix}`),
 								roles: ['livechat-agent'],
 							},
-							{ projection: { username: 1 } }
+							{ projection: { username: 1 } },
 						)
 						.toArray()
 				).map((user) => user.username);
 			}
 
 			console.log(this.usernames);
-			agents = await getClients(
-				config.HOW_MANY_USERS,
-				this.extraPrefix,
-				this.getCurrentFromUsers(this.usernames)
-			);
+			agents = await getClients(config.HOW_MANY_USERS, this.extraPrefix, this.getCurrentFromUsers(this.usernames));
 
 			const settings = this.db.collection('rocketchat_settings');
 			await settings.updateOne(
 				// @ts-expect-error _id is an ObjectID for mongo, but a string for settings :)
 				{ _id: 'Livechat_Routing_Method' },
-				{ $set: { value: 'Manual_Selection' } }
+				{ $set: { value: 'Manual_Selection' } },
 			);
 		}
 	})({
@@ -176,10 +173,7 @@ export default (): void => {
 			// Re-fetch inquiry
 			await agent.getInquiry(processedInquiry._id);
 			// open room
-			await agent.openLivechatRoom(
-				processedInquiry.rid,
-				processedInquiry.v._id
-			);
+			await agent.openLivechatRoom(processedInquiry.rid, processedInquiry.v._id);
 			// fetch info
 			await agent.getVisitorInfo(processedInquiry.v._id);
 			// take inquiry
@@ -204,8 +198,7 @@ export default (): void => {
 		}
 	});
 
-	b.run()
-		.catch((e) => {
-			console.error('Error during run', e);
-		});
+	b.run().catch((e) => {
+		console.error('Error during run', e);
+	});
 };

@@ -42,10 +42,7 @@ export abstract class BenchmarkRunner extends Emitter<
 
 	constructor(configuration: Events<number>) {
 		super();
-		this.eventsRate = new Map(Object.entries(configuration)) as Map<
-			EventKeys,
-			number
-		>;
+		this.eventsRate = new Map(Object.entries(configuration)) as Map<EventKeys, number>;
 
 		this.on('ready', () => this.turnOnTimers());
 		this.on('error', (error: unknown) => {
