@@ -1,6 +1,6 @@
 import PromisePool from '@supercharge/promise-pool';
 
-import { Client } from '../client/Client';
+import type { Client } from '../client/Client';
 
 const {
 	LOGIN_BATCH = 10,

@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 
 import { BenchmarkRunner } from './BenchmarkRunner';
-import { Client } from './client/Client';
+import type { Client } from './client/Client';
 import { config } from './config';
 import { userId } from './lib/ids';
 import { getRandomInt, rand } from './lib/rand';

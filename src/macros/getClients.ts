@@ -1,6 +1,6 @@
 import PromisePool from '@supercharge/promise-pool';
 
-import { Client } from '../client/Client';
+import type { Client } from '../client/Client';
 import { ClientBase } from '../client/ClientBase';
 import { config } from '../config';
 
@@ -13,28 +13,15 @@ const {
 	// MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
-export const getClients = async (
-	size: number,
-	userPrefix = '',
-	usersCurrent?: number[]
-): Promise<Client[]> => {
-	const users = Array.isArray(usersCurrent)
-		? usersCurrent
-		: Array.from({ length: size }).map((_, i) => i);
+export const getClients = async (size: number, userPrefix = '', usersCurrent?: number[]): Promise<Client[]> => {
+	const users = Array.isArray(usersCurrent) ? usersCurrent : Array.from({ length: size }).map((_, i) => i);
 
 	console.log('Logging in', size, 'users');
 
 	if (config.DYNAMIC_LOGIN) {
 		console.log('Creating a total of dynamic clients:', users.length);
 
-		return users.map((index) =>
-			ClientBase.getClient(
-				HOST_URL,
-				CLIENT_TYPE as 'web' | 'android' | 'ios',
-				index as number,
-				userPrefix
-			)
-		);
+		return users.map((index) => ClientBase.getClient(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix));
 	}
 
 	const { results } = await PromisePool.withConcurrency(config.LOGIN_BATCH)
@@ -44,12 +31,7 @@ export const getClients = async (
 			// throw error;
 		})
 		.process(async (index) => {
-			const client = ClientBase.getClient(
-				HOST_URL,
-				CLIENT_TYPE as 'web' | 'android' | 'ios',
-				index as number,
-				userPrefix
-			);
+			const client = ClientBase.getClient(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix);
 
 			await client.login();
 

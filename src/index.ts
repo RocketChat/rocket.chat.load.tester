@@ -2,7 +2,7 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 
 import agent from './agent';
-import { ObjectKeys } from './definifitons';
+import type { ObjectKeys } from './definifitons';
 import profile from './profile';
 
 import './server';
@@ -22,9 +22,7 @@ if (!actionsParam || !actionsParam.includes('process')) {
 	// will run only 'profile' by default
 	actionList = ['profile'];
 } else {
-	actionList = actionsParam.split('--process=').pop()?.split(',') as ObjectKeys<
-		typeof actions
-	>;
+	actionList = actionsParam.split('--process=').pop()?.split(',') as ObjectKeys<typeof actions>;
 }
 
 actionList.forEach((action) => {

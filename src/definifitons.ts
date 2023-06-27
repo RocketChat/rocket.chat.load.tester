@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongodb';
+import type { ObjectId } from 'mongodb';
 
 export type Room = {
 	_id: string;
@@ -69,10 +69,4 @@ export type Visitor = {
 };
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export type ObjectKeys<T> = T extends object
-	? (keyof T)[]
-	: T extends number
-	? []
-	: T extends Array<any> | string
-	? string[]
-	: never;
+export type ObjectKeys<T> = T extends object ? (keyof T)[] : T extends number ? [] : T extends Array<any> | string ? string[] : never;

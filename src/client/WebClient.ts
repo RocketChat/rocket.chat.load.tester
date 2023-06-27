@@ -1,4 +1,4 @@
-import { Subscription } from '../definifitons';
+import type { Subscription } from '../definifitons';
 import * as prom from '../lib/prom';
 import { Client } from './Client';
 
@@ -19,11 +19,7 @@ export class WebClient extends Client {
 		await this.client.subscribe('meteor_autoupdate_clientVersions');
 
 		// await client.subscribeNotifyAll();
-		await Promise.all(
-			['public-settings-changed'].map((event) =>
-				this.client.subscribe('stream-notify-all', event, false)
-			)
-		);
+		await Promise.all(['public-settings-changed'].map((event) => this.client.subscribe('stream-notify-all', event, false)));
 	}
 
 	async login(): Promise<void> {
@@ -58,9 +54,7 @@ export class WebClient extends Client {
 						'roles-change',
 						'voip.statuschanged',
 						'permissions-changed',
-					].map((event) =>
-						this.client.subscribe('stream-notify-logged', event, false)
-					)
+					].map((event) => this.client.subscribe('stream-notify-logged', event, false)),
 				);
 
 				// await client.subscribeNotifyUser();
@@ -76,13 +70,7 @@ export class WebClient extends Client {
 						'rooms-changed',
 						'webrtc',
 						'userData',
-					].map((event) =>
-						this.client.subscribe(
-							'stream-notify-user',
-							`${user.id}/${event}`,
-							false
-						)
-					)
+					].map((event) => this.client.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
 				);
 
 				await Promise.all(
@@ -96,12 +84,10 @@ export class WebClient extends Client {
 						'command/updated',
 						'command/removed',
 						'actions/changed',
-					].map((event) => this.client.subscribe('stream-apps', event, false))
+					].map((event) => this.client.subscribe('stream-apps', event, false)),
 				);
 
-				await Promise.all(
-					this.getLoginMethods().map((params) => this.methodViaRest(...params))
-				);
+				await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
 
 				const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
@@ -133,24 +119,17 @@ export class WebClient extends Client {
 
 		try {
 			const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
-			const removeIds = this.usersPresence.filter(
-				(id) => !userIds.includes(id)
-			);
+			const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
 
-			await this.client.get(
-				`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`
-			);
+			await this.client.get(`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`);
 
-			((await this.client.socket) as any).ddp.subscribe(
-				'stream-user-presence',
-				[
-					'',
-					{
-						...(newIds && { added: newIds }),
-						...(removeIds && { removed: removeIds }),
-					},
-				]
-			);
+			((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
+				'',
+				{
+					...(newIds && { added: newIds }),
+					...(removeIds && { removed: removeIds }),
+				},
+			]);
 
 			this.usersPresence = [...new Set(userIds)];
 
@@ -186,12 +165,7 @@ export class WebClient extends Client {
 			await this.login();
 		}
 
-		await this.client.methodCall(
-			'stream-notify-room',
-			`${rid}/user-activity`,
-			this.client.username,
-			typing
-		);
+		await this.client.methodCall('stream-notify-room', `${rid}/user-activity`, this.client.username, typing);
 	}
 
 	async openRoom(rid = 'GENERAL'): Promise<void> {
@@ -264,11 +238,7 @@ export class WebClient extends Client {
 			end({ status: 'success' });
 			endAction({ status: 'success' });
 		} catch (e) {
-			console.error(
-				'error subscribing room',
-				{ uid: this.client.userId, rid },
-				e
-			);
+			console.error('error subscribing room', { uid: this.client.userId, rid }, e);
 			end({ status: 'error' });
 			endAction({ status: 'error' });
 		}
