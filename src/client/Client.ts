@@ -185,7 +185,7 @@ export class Client {
 
 		const endAction = prom.actions.startTimer({ action: 'read' });
 		try {
-			this.client.post('subscriptions.read', { rid });
+			await this.client.post('subscriptions.read', { rid });
 			endAction({ status: 'success' });
 		} catch (e) {
 			endAction({ status: 'error' });
@@ -343,7 +343,7 @@ export class Client {
 			await this.login();
 		}
 
-		this.client.methodCall(
+		await this.client.methodCall(
 			'stream-notify-room',
 			`${rid}/typing`,
 			this.client.username,

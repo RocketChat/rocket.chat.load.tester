@@ -1,25 +1,29 @@
-import { ILoginResultAPI } from '@rocket.chat/sdk/interfaces';
 import { MongoClient } from 'mongodb';
 
 import { BenchmarkRunner } from './BenchmarkRunner';
-import { Client } from './client/Client';
+import type { Client } from './client/Client';
 import { config } from './config';
 import { userId } from './lib/ids';
 import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 // import { joinRooms } from './macros/joinRooms';
-import populate, { isFullPopulation } from './populate';
+import { populateDatabase, isFullPopulation } from './populate';
 
 export default (): void => {
 	let clients: Client[];
 
-	const b = new (class extends BenchmarkRunner {
-		private skippedPopulate = false;
+	async function getLoggedInClient() {
+		const client = rand(clients);
+		if (!client.loggedIn) {
+			await client.login();
+		}
+		return client;
+	}
 
+	const b = new (class extends BenchmarkRunner {
 		async populate() {
 			if (!config.DATABASE_URL) {
 				console.log('Skip populate, no DATABASE_URL');
-				this.skippedPopulate = true;
 				return;
 			}
 
@@ -36,19 +40,18 @@ export default (): void => {
 				console.log('Checking if the hash already exists');
 
 				if (await users.findOne({ _id: new RegExp(config.hash) })) {
-					console.log('Task skipped');
-					this.skippedPopulate = true;
+					console.log('Hash for current task already found, skipping DB populate');
 					return;
 				}
 
-				const results = await populate();
+				const results = await populateDatabase();
 
 				if (!isFullPopulation(results)) {
 					return;
 				}
 
 				console.log(
-					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`
+					`Inserting users: ${results.users.length} rooms: ${results.rooms.length} subscriptions: ${results.subscriptions.length}`,
 				);
 
 				const subscriptions = db.collection('rocketchat_subscription');
@@ -69,10 +72,6 @@ export default (): void => {
 		async setup() {
 			clients = await getClients(config.HOW_MANY_USERS);
 
-			// if it didn't have to populate there is not need to join rooms, so skip
-			// if (this.skippedPopulate) {
-			// }
-
 			// if (config.JOIN_ROOM) {
 			// await joinRooms(clients);
 			// }
@@ -91,10 +90,7 @@ export default (): void => {
 	});
 
 	b.on('message', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		const subscription = client.getRandomSubscription();
 
@@ -109,19 +105,14 @@ export default (): void => {
 	});
 
 	b.on('setUserStatus', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		await client.setStatus();
 	});
 
 	b.on('readMessages', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
+
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
 			return;
@@ -131,10 +122,7 @@ export default (): void => {
 	});
 
 	b.on('openRoom', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		const subscription = client.getRandomSubscription();
 		if (!subscription) {
@@ -144,10 +132,7 @@ export default (): void => {
 	});
 
 	b.on('subscribePresence', async () => {
-		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
-		}
+		const client = await getLoggedInClient();
 
 		// change half the subscriptions to presence
 		const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
@@ -167,29 +152,22 @@ export default (): void => {
 
 	b.on('uploadFile', async () => {
 		try {
-			const client = rand(clients);
+			const client = await getLoggedInClient();
 			const subscription = client.getRandomSubscription();
 
 			if (!subscription) {
 				return;
 			}
 
-			const { authToken, userId } = client.client.currentLogin as {
-				username: string;
-				userId: string;
-				authToken: string;
-				result: ILoginResultAPI;
-			};
-
 			await client.uploadFile({
 				rid: subscription.rid,
-				authToken,
-				userId,
 			});
 		} catch (error) {
 			console.error('Error uploading file', error);
 		}
 	});
 
-	b.run();
+	b.run().catch((e) => {
+		console.error('Error during run', e);
+	});
 };

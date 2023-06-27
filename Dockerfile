@@ -1,4 +1,4 @@
-FROM node:14 as builder
+FROM node:20 as builder
 
 COPY . /app
 
@@ -12,7 +12,7 @@ ENV NODE_ENV=production
 
 RUN cd /app/dist && npm install
 
-FROM node:14-alpine
+FROM node:20-alpine
 
 COPY --from=builder /app/dist/ /app
 

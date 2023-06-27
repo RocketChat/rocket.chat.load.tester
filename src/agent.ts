@@ -5,7 +5,7 @@ import { Client } from './client/Client';
 import { config } from './config';
 import { rand } from './lib/rand';
 import { getClients } from './macros/getClients';
-import populate, { isOnlyUserPopulation } from './populate';
+import { populateDatabase, isOnlyUserPopulation } from './populate';
 
 export default (): void => {
 	let agents: Client[];
@@ -60,7 +60,7 @@ export default (): void => {
 					return;
 				}
 
-				const results = await populate({
+				const results = await populateDatabase({
 					userProps: {
 						roles: ['livechat-agent'],
 						extraPrefix: '-agent-',
@@ -204,5 +204,8 @@ export default (): void => {
 		}
 	});
 
-	b.run();
+	b.run()
+		.catch((e) => {
+			console.error('Error during run', e);
+		});
 };

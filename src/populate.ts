@@ -14,6 +14,7 @@ const userBase = {
 			loginTokens: [],
 		},
 	},
+	emails: [{ verified: false }],
 	type: 'user',
 	status: 'offline',
 	active: true,
@@ -154,6 +155,7 @@ const produceUsers = async (
 ): Promise<{ users: Storable<User>[] }> => {
 	const total = totalRooms * usersPerRoom;
 	const users: Storable<User>[] = [];
+
 	for (let userCounter = 0; userCounter < total; userCounter++) {
 		const uid = userId(userCounter, options?.userProps?.extraPrefix);
 		const newUser = createUser(uid, userCounter, undefined, options);
@@ -164,7 +166,7 @@ const produceUsers = async (
 	return { users };
 };
 
-export default async (options?: {
+export async function populateDatabase(options?: {
 	userProps: {
 		roles?: string[];
 		extraPrefix?: string;
@@ -178,7 +180,7 @@ export default async (options?: {
 			subscriptions: Storable<Subscription>[];
 	  }
 	| { users: Storable<User>[] }
-> => {
+> {
 	// compile the arguments and check if the rooms already exist
 	const { HOW_MANY_USERS, USERS_PER_ROOM, hash } = config;
 
@@ -198,7 +200,7 @@ export default async (options?: {
 		options
 	);
 	return { rooms, users, subscriptions };
-};
+}
 
 export const isOnlyUserPopulation = (
 	result:

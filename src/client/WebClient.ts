@@ -3,7 +3,7 @@ import * as prom from '../lib/prom';
 import { Client } from './Client';
 
 export class WebClient extends Client {
-	loginPromise: Promise<boolean> | undefined;
+	loginPromise: Promise<void> | undefined;
 
 	async beforeLogin(): Promise<void> {
 		await this.client.connect({});
@@ -28,17 +28,18 @@ export class WebClient extends Client {
 
 	async login(): Promise<void> {
 		if (this.loginPromise) {
-			await this.loginPromise;
-			return;
+			return this.loginPromise;
 		}
 
-		this.loginPromise = new Promise(async (resolve) => {
-			await this.beforeLogin();
-
+		this.loginPromise = new Promise(async (resolve, reject) => {
 			const end = prom.login.startTimer();
 			const endAction = prom.actions.startTimer({ action: 'login' });
+
 			const { credentials } = this;
+
 			try {
+				await this.beforeLogin();
+
 				const user = await this.client.login(credentials);
 
 				// await this.client.subscribeLoggedNotify();
@@ -103,25 +104,25 @@ export class WebClient extends Client {
 					this.getLoginMethods().map((params) => this.methodViaRest(...params))
 				);
 
-				this.loggedIn = true;
-
 				const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
 				this.subscriptions = subscriptions as unknown as Subscription[];
 
+				this.loggedIn = true;
+
 				end({ status: 'success' });
 				endAction({ action: 'login', status: 'success' });
-			} catch (e) {
-				console.error('error during login', e, credentials);
+
+				resolve();
+			} catch (error) {
 				end({ status: 'error' });
 				endAction({ action: 'login', status: 'error' });
-				throw e;
-			} finally {
-				resolve(true);
+
+				reject({ error, credentials });
 			}
 		});
 
-		await this.loginPromise;
+		return this.loginPromise;
 	}
 
 	async listenPresence(userIds: string[]): Promise<void> {
@@ -186,7 +187,7 @@ export class WebClient extends Client {
 			await this.login();
 		}
 
-		this.client.methodCall(
+		await this.client.methodCall(
 			'stream-notify-room',
 			`${rid}/user-activity`,
 			this.client.username,
