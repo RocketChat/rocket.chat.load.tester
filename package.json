@@ -29,7 +29,7 @@
     "lint": "eslint src",
     "lint-fix": "eslint --fix src",
     "lint-staged": "lint-staged",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand --passWithNoTests",
     "dev": "nodemon src/index.ts",
     "start": "ts-node ./src/index.ts"
   },
