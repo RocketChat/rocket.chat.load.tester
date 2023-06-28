@@ -1,7 +1,6 @@
 import PromisePool from '@supercharge/promise-pool';
 
 import type { Client } from '../client/Client';
-import { ClientBase } from '../client/ClientBase';
 import { config } from '../config';
 
 const {
@@ -13,7 +12,18 @@ const {
 	// MESSAGE_SENDING_RATE = 0.002857142857143,
 } = process.env;
 
-export const getClients = async (size: number, userPrefix = '', usersCurrent?: number[]): Promise<Client[]> => {
+// eslint-disable-next-line @typescript-eslint/naming-convention
+interface ConstructorOf<T> {
+	new (...args: any[]): T;
+}
+
+export const getClients = async <C extends Client, T extends ConstructorOf<C>>(
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	Kind: T,
+	size: number,
+	userPrefix = '',
+	usersCurrent?: number[],
+): Promise<C[]> => {
 	const users = Array.isArray(usersCurrent) ? usersCurrent : Array.from({ length: size }).map((_, i) => i);
 
 	console.log('Logging in', size, 'users');
@@ -21,7 +31,7 @@ export const getClients = async (size: number, userPrefix = '', usersCurrent?: n
 	if (config.DYNAMIC_LOGIN) {
 		console.log('Creating a total of dynamic clients:', users.length);
 
-		return users.map((index) => ClientBase.getClient(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix));
+		return users.map((index) => new Kind(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix));
 	}
 
 	const { results } = await PromisePool.withConcurrency(config.LOGIN_BATCH)
@@ -31,7 +41,7 @@ export const getClients = async (size: number, userPrefix = '', usersCurrent?: n
 			// throw error;
 		})
 		.process(async (index) => {
-			const client = ClientBase.getClient(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix);
+			const client = new Kind(HOST_URL, CLIENT_TYPE as 'web' | 'android' | 'ios', index as number, userPrefix);
 
 			await client.login();
 
