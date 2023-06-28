@@ -8,6 +8,11 @@ import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 // import { joinRooms } from './macros/joinRooms';
 import { populateDatabase, isFullPopulation } from './populate';
+import { consumeQueue, queueTask } from './lib/queue';
+
+const queueLogin = async (client: Client) => {
+	await queueTask(async () => client.login());
+};
 
 export default (): void => {
 	let clients: Client[];
@@ -15,7 +20,8 @@ export default (): void => {
 	async function getLoggedInClient() {
 		const client = rand(clients);
 		if (!client.loggedIn) {
-			await client.login();
+			// await client.login();
+			await queueLogin(client);
 		}
 		return client;
 	}
@@ -86,6 +92,8 @@ export default (): void => {
 
 	b.on('ready', async () => {
 		console.log('Starting sending messages');
+
+		await consumeQueue(config.LOGIN_BATCH);
 	});
 
 	b.on('message', async () => {
