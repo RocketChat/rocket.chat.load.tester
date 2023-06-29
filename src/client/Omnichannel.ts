@@ -13,7 +13,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -29,7 +29,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async getAgentDepartments(): Promise<{ departments: Department[] } | undefined> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -45,7 +45,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async getQueuedInquiries(): Promise<{ inquiries: Inquiry[] } | undefined> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -65,7 +65,7 @@ export class OmnichannelClient extends Client {
 			return;
 		}
 
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -86,7 +86,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async takeInquiry(id: string): Promise<void> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -105,7 +105,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async getInquiry(id: string): Promise<Inquiry | undefined> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -123,7 +123,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async getVisitorInfo(vid: string): Promise<Visitor | undefined> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
@@ -140,7 +140,7 @@ export class OmnichannelClient extends Client {
 	}
 
 	async openLivechatRoom(rid: string, vid: string): Promise<void> {
-		if (!this.loggedIn) {
+		if (this.status === 'logging') {
 			await this.login();
 		}
 
