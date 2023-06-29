@@ -8,15 +8,34 @@ import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 import { populateDatabase, isFullPopulation } from './populate';
 import { WebClient } from './client/WebClient';
+import { AlreadyLoggingError } from './errors/AlreadyLoggingError';
+
+const suppressError = <F extends (...args: any) => Promise<any>>(fn: F): F => {
+	return (async (...args: any) => {
+		try {
+			return await fn(...args);
+		} catch (error) {
+			console.error(error);
+		}
+	}) as F;
+};
 
 export default (): void => {
 	let clients: Client[];
 
 	async function getLoggedInClient() {
 		const client = rand(clients);
-		if (!client.loggedIn) {
-			await client.login();
+
+		if (client.status === 'logging') {
+			throw new AlreadyLoggingError();
 		}
+
+		if (client.status === 'logged') {
+			return client;
+		}
+
+		await client.login();
+
 		return client;
 	}
 
@@ -71,10 +90,6 @@ export default (): void => {
 
 		async setup() {
 			clients = await getClients(WebClient, config.HOW_MANY_USERS);
-
-			// if (config.JOIN_ROOM) {
-			// await joinRooms(clients);
-			// }
 		}
 	})({
 		message: config.MESSAGES_PER_SECOND,
@@ -88,66 +103,81 @@ export default (): void => {
 		console.log('Starting sending messages');
 	});
 
-	b.on('message', async () => {
-		const client = await getLoggedInClient();
+	b.on(
+		'message',
+		suppressError(async () => {
+			const client = await getLoggedInClient();
 
-		const subscription = client.getRandomSubscription();
+			const subscription = client.getRandomSubscription();
 
-		if (!subscription) {
-			return;
-		}
-		try {
-			await client.sendMessage(config.MESSAGE, subscription.rid);
-		} catch (error) {
-			console.error('Error sending message', error);
-		}
-	});
+			if (!subscription) {
+				return;
+			}
+			try {
+				await client.sendMessage(config.MESSAGE, subscription.rid);
+			} catch (error) {
+				console.error('Error sending message', error);
+			}
+		}),
+	);
 
-	b.on('setUserStatus', async () => {
-		const client = await getLoggedInClient();
+	b.on(
+		'setUserStatus',
+		suppressError(async () => {
+			const client = await getLoggedInClient();
 
-		await client.setStatus();
-	});
+			await client.setStatus();
+		}),
+	);
 
-	b.on('readMessages', async () => {
-		const client = await getLoggedInClient();
+	b.on(
+		'readMessages',
+		suppressError(async () => {
+			const client = await getLoggedInClient();
 
-		const subscription = client.getRandomSubscription();
-		if (!subscription) {
-			return;
-		}
+			const subscription = client.getRandomSubscription();
+			if (!subscription) {
+				return;
+			}
 
-		await client.read(subscription.rid);
-	});
+			await client.read(subscription.rid);
+		}),
+	);
 
-	b.on('openRoom', async () => {
-		const client = await getLoggedInClient();
+	b.on(
+		'openRoom',
+		suppressError(async () => {
+			const client = await getLoggedInClient();
 
-		const subscription = client.getRandomSubscription();
-		if (!subscription) {
-			return;
-		}
-		await client.openRoom(subscription.rid);
-	});
+			const subscription = client.getRandomSubscription();
+			if (!subscription) {
+				return;
+			}
+			await client.openRoom(subscription.rid);
+		}),
+	);
 
-	b.on('subscribePresence', async () => {
-		const client = await getLoggedInClient();
+	b.on(
+		'subscribePresence',
+		suppressError(async () => {
+			const client = await getLoggedInClient();
 
-		// change half the subscriptions to presence
-		const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
+			// change half the subscriptions to presence
+			const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
 
-		const newIds = [];
+			const newIds = [];
 
-		for (let i = 0; i < newSubs; i++) {
-			newIds.push(userId(getRandomInt(config.HOW_MANY_USERS)));
-		}
+			for (let i = 0; i < newSubs; i++) {
+				newIds.push(userId(getRandomInt(config.HOW_MANY_USERS)));
+			}
 
-		const userIds = client.usersPresence.slice(newSubs);
+			const userIds = client.usersPresence.slice(newSubs);
 
-		userIds.push(...newIds);
+			userIds.push(...newIds);
 
-		await client.listenPresence(userIds);
-	});
+			await client.listenPresence(userIds);
+		}),
+	);
 
 	b.run().catch((e) => {
 		console.error('Error during run', e);
