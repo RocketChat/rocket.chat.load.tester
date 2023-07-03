@@ -54,6 +54,7 @@ export class WebClient extends Client {
 						'roles-change',
 						'voip.statuschanged',
 						'permissions-changed',
+						'uploadFile',
 					].map((event) => this.client.subscribe('stream-notify-logged', event, false)),
 				);
 

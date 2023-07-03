@@ -23,7 +23,8 @@ type EventKeys =
 	| 'subscribePresence'
 	| 'getRoutingConfig'
 	| 'getQueuedInquiries'
-	| 'takeInquiry';
+	| 'takeInquiry'
+	| 'uploadFile';
 
 const eventsPerSecond = (events: number): number => Math.ceil(1000 / events);
 

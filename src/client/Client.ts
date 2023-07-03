@@ -1,12 +1,17 @@
+import fs from 'fs';
+import path from 'path';
 import { URLSearchParams } from 'url';
 
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 import EJSON from 'ejson';
+import FormData from 'form-data';
+import type { BodyInit, RequestInit } from 'node-fetch';
 import fetch from 'node-fetch';
 
 import { config } from '../config';
 import type { Subscription, Department, Inquiry, Visitor } from '../definifitons';
 import { delay } from '../lib/delay';
+import { getRandomFileFromFolder } from '../lib/file';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
@@ -264,6 +269,39 @@ export class Client {
 		await this.typing(rid, false);
 	}
 
+	async uploadFile(rid: string): Promise<void> {
+		if (!this.client.currentLogin) {
+			return;
+		}
+
+		const folderPath = path.join(__dirname, '..', '..', 'assets');
+
+		const { fullPath: filePath } = getRandomFileFromFolder(folderPath);
+
+		const { authToken, userId } = this.client.currentLogin;
+
+		const endAction = prom.actions.startTimer({ action: 'uploadFile' });
+		try {
+			const fileFormData = new FormData();
+
+			fileFormData.append('file', fs.createReadStream(filePath));
+
+			await this.httpPost(`/api/v1/rooms.upload/${rid}`, {
+				body: fileFormData as unknown as BodyInit,
+				headers: {
+					'X-Auth-Token': authToken,
+					'X-User-Id': userId,
+					'Content-Type': `multipart/form-data; boundary=${fileFormData.getBoundary()}`,
+				},
+			});
+
+			endAction({ status: 'success' });
+		} catch (e) {
+			endAction({ status: 'error' });
+			throw e;
+		}
+	}
+
 	async typing(rid: string, typing: boolean): Promise<void> {
 		if (!this.loggedIn) {
 			await this.login();
@@ -507,6 +545,14 @@ export class Client {
 		const result = await fetch(`${this.host}${endpoint}${qs}`, {
 			method: 'GET',
 			...(query && { body: JSON.stringify(query) }),
+		});
+		return result.json();
+	}
+
+	protected async httpPost(endpoint: string, init?: RequestInit): Promise<unknown> {
+		const result = await fetch(`${this.host}${endpoint}`, {
+			method: 'POST',
+			...init,
 		});
 		return result.json();
 	}
