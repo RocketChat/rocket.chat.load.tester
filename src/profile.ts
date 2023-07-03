@@ -26,6 +26,10 @@ export default (): void => {
 	async function getLoggedInClient() {
 		const client = rand(clients);
 
+		if (!client) {
+			throw new Error('No logged in client found');
+		}
+
 		if (client.status === 'logging') {
 			throw new AlreadyLoggingError();
 		}
