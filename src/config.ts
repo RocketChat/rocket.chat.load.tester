@@ -46,6 +46,8 @@ const {
 	TAKE_INQUIRY_PER_SEC = '1',
 
 	DYNAMIC_LOGIN = 'false',
+
+	LOGIN_PER_SECOND = '1',
 } = process.env;
 
 const taskId = String(TASK_ID || net || '1');
@@ -97,4 +99,5 @@ export const config = {
 	TAKE_INQUIRY_PER_SEC: parseInt(TAKE_INQUIRY_PER_SEC),
 
 	DYNAMIC_LOGIN: ['true', 'yes'].includes(DYNAMIC_LOGIN),
+	LOGIN_PER_SECOND: parseInt(LOGIN_PER_SECOND),
 };
