@@ -2,6 +2,8 @@ module.exports = {
 	extends: '@rocket.chat/eslint-config',
 	env: {
 		jest: true,
+		es2020: true,
+		node: true,
 	},
 	overrides: [
 		{
