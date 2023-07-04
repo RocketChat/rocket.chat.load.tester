@@ -76,7 +76,9 @@ export default client;
 export { client };
 
 export const promWrapperRest = <F extends (endpoint: string, ...args: any[]) => Promise<any>>(method: string, fn: F): F => {
-	return (async (endpoint: string, ...args: any[]) => {
+	return (async (url: string, ...args: any[]) => {
+		const [endpoint] = url.split('?');
+
 		const endTimer = rest.startTimer({ endpoint, method });
 		try {
 			const result = await fn(endpoint, ...args);
@@ -91,7 +93,7 @@ export const promWrapperRest = <F extends (endpoint: string, ...args: any[]) => 
 
 export const promWrapperSubscribe = <F extends (...args: any[]) => Promise<any>>(fn: F): F => {
 	return (async (...args: any[]) => {
-		const endTimer = subscriptions.startTimer({ name: args.join('___') });
+		const endTimer = subscriptions.startTimer({ name: args[0] });
 		try {
 			const result = await fn(...args);
 			endTimer({ status: 'success' });
