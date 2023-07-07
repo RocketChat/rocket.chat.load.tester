@@ -26,82 +26,79 @@ export class WebClient extends Client {
 	@suppressError
 	@action
 	async login(): Promise<void> {
-		if (this.loginPromise) {
-			return this.loginPromise;
+		if (this.status === 'logged') {
+			throw new Error('Already logged in');
 		}
 
-		this.loginPromise = new Promise(async (resolve, reject) => {
-			const { credentials } = this;
+		if (this.status === 'logging') {
+			throw new Error('Already logging in');
+		}
 
-			try {
-				await this.beforeLogin();
+		// TODO if an error happens, we should rollback the status to not-logged
+		this.status = 'logging';
 
-				const user = await this.client.login(credentials);
+		const { credentials } = this;
 
-				// await this.subscribeLoggedNotify();
-				await Promise.all(
-					[
-						'deleteCustomSound',
-						'updateCustomSound',
-						'updateEmojiCustom',
-						'deleteEmojiCustom',
-						'deleteCustomUserStatus',
-						'updateCustomUserStatus',
-						'banner-changed',
-						'updateAvatar',
-						'Users:NameChanged',
-						'Users:Deleted',
-						'roles-change',
-						'voip.statuschanged',
-						'permissions-changed',
-					].map((event) => this.subscribe('stream-notify-logged', event, false)),
-				);
+		await this.beforeLogin();
 
-				// await subscribeNotifyUser();
-				await Promise.all(
-					[
-						'uiInteraction',
-						'video-conference',
-						'force_logout',
-						'message',
-						'subscriptions-changed',
-						'notification',
-						'otr',
-						'rooms-changed',
-						'webrtc',
-						'userData',
-					].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
-				);
+		const user = await this.client.login(credentials);
 
-				await Promise.all(
-					[
-						'app/added',
-						'app/removed',
-						'app/updated',
-						'app/settingUpdated',
-						'command/added',
-						'command/disabled',
-						'command/updated',
-						'command/removed',
-						'actions/changed',
-					].map((event) => this.subscribe('stream-apps', event, false)),
-				);
+		// await this.subscribeLoggedNotify();
+		await Promise.all(
+			[
+				'deleteCustomSound',
+				'updateCustomSound',
+				'updateEmojiCustom',
+				'deleteEmojiCustom',
+				'deleteCustomUserStatus',
+				'updateCustomUserStatus',
+				'banner-changed',
+				'updateAvatar',
+				'Users:NameChanged',
+				'Users:Deleted',
+				'roles-change',
+				'voip.statuschanged',
+				'permissions-changed',
+			].map((event) => this.subscribe('stream-notify-logged', event, false)),
+		);
 
-				await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
+		// await subscribeNotifyUser();
+		await Promise.all(
+			[
+				'uiInteraction',
+				'video-conference',
+				'force_logout',
+				'message',
+				'subscriptions-changed',
+				'notification',
+				'otr',
+				'rooms-changed',
+				'webrtc',
+				'userData',
+			].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
+		);
 
-				const subscriptions = await this.methodViaRest('subscriptions/get', {});
+		await Promise.all(
+			[
+				'app/added',
+				'app/removed',
+				'app/updated',
+				'app/settingUpdated',
+				'command/added',
+				'command/disabled',
+				'command/updated',
+				'command/removed',
+				'actions/changed',
+			].map((event) => this.subscribe('stream-apps', event, false)),
+		);
 
-				this.subscriptions = subscriptions as unknown as Subscription[];
+		await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
 
-				this.loggedIn = true;
+		const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
-				resolve();
-			} catch (error) {
-				reject({ error, credentials });
-			}
-		});
+		this.subscriptions = subscriptions as unknown as Subscription[];
 
-		return this.loginPromise;
+		this.status = 'logged';
 	}
 
 	@suppressError

@@ -31,7 +31,9 @@ const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL
 export type ClientType = 'web' | 'android' | 'ios';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-interface ClientLoadTest {
+export interface ClientLoadTest {
+	status: 'logged' | 'not-logged' | 'logging';
+
 	joinRoom(rid: string): Promise<void>;
 
 	setStatus(): Promise<void>;
@@ -84,8 +86,6 @@ export class Client implements ClientLoadTest {
 
 	subscribedToLivechat = false;
 
-	loggedIn = false;
-
 	constructor(
 		host: string,
 		type: 'web' | 'android' | 'ios',
@@ -115,6 +115,8 @@ export class Client implements ClientLoadTest {
 
 		this.subscribe = prom.promWrapperSubscribe((...args) => this.client.subscribe(...args));
 	}
+
+	status: 'logged' | 'not-logged' | 'logging' = 'not-logged';
 
 	get: IAPIRequest;
 
@@ -220,7 +222,7 @@ export class Client implements ClientLoadTest {
 
 		await Promise.all(this.getLoginMethods().map((params) => this.client.methodCall(...params)));
 
-		this.loggedIn = true;
+		this.status = 'logged';
 	}
 
 	async listenPresence(_userIds: string[]): Promise<void> {

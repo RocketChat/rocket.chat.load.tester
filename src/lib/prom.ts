@@ -75,6 +75,24 @@ export default client;
 
 export { client };
 
+const promWrapperBase =
+	<P extends client.Summary>(prom: P) =>
+	<F extends (...args: any[]) => Promise<any>>(action: string, fn: F): F => {
+		return (async (...args: any[]) => {
+			const endTimer = prom.startTimer({ action });
+			try {
+				const result = await fn(...args);
+				endTimer({ status: 'success' });
+				return result;
+			} catch (e) {
+				endTimer({ status: 'error' });
+				throw e;
+			}
+		}) as unknown as F;
+	};
+
+export const promWrapperAction = promWrapperBase(actions);
+
 export const promWrapperRest = <F extends (endpoint: string, ...args: any[]) => Promise<any>>(method: string, fn: F): F => {
 	return (async (url: string, ...args: any[]) => {
 		const [endpoint] = url.split('?');
