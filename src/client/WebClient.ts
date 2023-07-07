@@ -26,9 +26,6 @@ export class WebClient extends Client {
 	@suppressError
 	@action
 	async login(): Promise<void> {
-		const { credentials } = this;
-		await this.beforeLogin();
-
 		if (this.status === 'logged') {
 			throw new Error('Already logged in');
 		}
@@ -36,6 +33,13 @@ export class WebClient extends Client {
 		if (this.status === 'logging') {
 			throw new Error('Already logging in');
 		}
+
+		// TODO if an error happens, we should rollback the status to not-logged
+		this.status = 'logging';
+
+		const { credentials } = this;
+
+		await this.beforeLogin();
 
 		const user = await this.client.login(credentials);
 
