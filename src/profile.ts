@@ -15,6 +15,10 @@ const suppressError = <F extends (...args: any) => Promise<any>>(fn: F): F => {
 		try {
 			return await fn(...args);
 		} catch (error) {
+			// ignore AlreadyLoggingError
+			if (error instanceof AlreadyLoggingError) {
+				return;
+			}
 			console.error(error);
 		}
 	}) as F;
