@@ -6,8 +6,8 @@ import { config } from './config';
 import { userId } from './lib/ids';
 import { getRandomInt, rand } from './lib/rand';
 import { getClients } from './macros/getClients';
-// import { joinRooms } from './macros/joinRooms';
 import { populateDatabase, isFullPopulation } from './populate';
+import { WebClient } from './client/WebClient';
 
 export default (): void => {
 	let clients: Client[];
@@ -70,7 +70,7 @@ export default (): void => {
 		}
 
 		async setup() {
-			clients = await getClients(config.HOW_MANY_USERS);
+			clients = await getClients(WebClient, config.HOW_MANY_USERS);
 
 			// if (config.JOIN_ROOM) {
 			// await joinRooms(clients);

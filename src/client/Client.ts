@@ -3,13 +3,16 @@ import { URLSearchParams } from 'url';
 import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
 import EJSON from 'ejson';
 import fetch from 'node-fetch';
+import type Api from '@rocket.chat/sdk/lib/api/api';
+import type { IAPIRequest, ISubscription } from '@rocket.chat/sdk/interfaces';
 
 import { config } from '../config';
-import type { Subscription, Department, Inquiry, Visitor } from '../definifitons';
+import type { Subscription } from '../definifitons';
 import { delay } from '../lib/delay';
 import { username, email } from '../lib/ids';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
+import { action, errorLogger, suppressError } from './decorators';
 
 const logger = {
 	debug: (...args: any) => true || console.log(args),
@@ -26,7 +29,37 @@ const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
 const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL_ENABLED) : true;
 
 export type ClientType = 'web' | 'android' | 'ios';
-export class Client {
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+interface ClientLoadTest {
+	joinRoom(rid: string): Promise<void>;
+
+	setStatus(): Promise<void>;
+
+	read(rid: string): Promise<void>;
+
+	login(): Promise<void>;
+
+	sendMessage(msg: string, rid: string): Promise<void>;
+
+	typing(rid: string, typing: boolean): Promise<void>;
+
+	openRoom(rid: string, roomType: string): Promise<void>;
+
+	subscribeRoom(rid: string): Promise<void>;
+
+	beforeLogin(): Promise<void>;
+
+	getRandomSubscription(): Subscription | undefined;
+
+	get: Api['get'];
+
+	post: Api['post'];
+
+	subscribe: RocketChatClient['subscribe'];
+}
+
+export class Client implements ClientLoadTest {
 	host: string;
 
 	subscriptions: Subscription[] = [];
@@ -76,8 +109,21 @@ export class Client {
 		});
 
 		this.client = client;
+
+		this.get = prom.promWrapperRest('GET', (...args) => this.client.get(...args));
+		this.post = prom.promWrapperRest('POST', (...args) => this.client.post(...args));
+
+		this.subscribe = prom.promWrapperSubscribe((...args) => this.client.subscribe(...args));
 	}
 
+	get: IAPIRequest;
+
+	post: IAPIRequest;
+
+	subscribe: (topic: string, ...args: any[]) => Promise<ISubscription>;
+
+	@suppressError
+	@action
 	async beforeLogin(): Promise<void> {
 		await this.client.connect({});
 
@@ -86,11 +132,9 @@ export class Client {
 		switch (this.type) {
 			case 'android':
 			case 'ios':
-				await Promise.all([this.client.get('settings.public'), this.client.get('settings.oauth')]);
+				await Promise.all([this.get('settings.public'), this.get('settings.oauth')]);
 				break;
 		}
-
-		// await loginOrRegister(client, credentials, type, current);
 	}
 
 	getManyPresences(): number {
@@ -115,113 +159,66 @@ export class Client {
 		return this.credentials.username;
 	}
 
+	@errorLogger
 	protected async loginOrRegister(): Promise<void> {
-		// if (tryRegister) {
-		//   await register(client, credentials, type);
-		// }
-
-		try {
-			if (!['yes', 'true'].includes(LOG_IN)) {
-				return;
-			}
-			await this.login();
-		} catch (e) {
-			console.error('could not login/register for', this.credentials, e);
+		if (!['yes', 'true'].includes(LOG_IN)) {
+			return;
 		}
+		await this.login();
 	}
 
-	async joinRoom(rid = 'GENERAL'): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.roomJoin.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'joinRoom' });
-		try {
-			await this.client.joinRoom({ rid });
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error joining room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-		}
+	@suppressError
+	@action
+	async joinRoom(rid = 'GENERAL') {
+		await this.client.joinRoom({ rid });
 	}
 
-	async setStatus(): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
+	@suppressError
+	@action
+	async setStatus() {
 		const status = rand(['online', 'away', 'offline', 'busy']);
 
-		const endAction = prom.actions.startTimer({ action: 'setStatus' });
-		try {
-			await this.client.post('users.setStatus', { status });
-			endAction({ status: 'success' });
-		} catch (e) {
-			endAction({ status: 'error' });
-		}
+		await this.post('users.setStatus', { status });
 	}
 
+	@suppressError
+	@action
 	async read(rid: string): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const endAction = prom.actions.startTimer({ action: 'read' });
-		try {
-			await this.client.post('subscriptions.read', { rid });
-			endAction({ status: 'success' });
-		} catch (e) {
-			endAction({ status: 'error' });
-		}
+		await this.post('subscriptions.read', { rid });
 	}
 
-	async login(): Promise<void> {
+	@suppressError
+	@action
+	async login() {
 		await this.beforeLogin();
 
-		const end = prom.login.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'login' });
 		const { credentials } = this;
-		try {
-			const user = await this.client.login(credentials);
 
-			// do one by one as doing three at same time was hanging
-			switch (this.type) {
-				case 'android':
-				case 'ios':
-					await Promise.all(
-						['rooms-changed', 'subscriptions-changed'].map((stream) => this.client.subscribe('stream-notify-user', `${user.id}/${stream}`)),
-					);
+		const user = await this.client.login(credentials);
 
-					await Promise.all(['userData', 'activeUsers'].map((stream) => this.client.subscribe(stream, '')));
+		// do one by one as doing three at same time was hanging
+		switch (this.type) {
+			case 'android':
+			case 'ios':
+				await Promise.all(
+					['rooms-changed', 'subscriptions-changed'].map((stream) => this.subscribe('stream-notify-user', `${user.id}/${stream}`)),
+				);
 
-					await Promise.all([
-						this.client.get('me'),
-						this.client.get('permissions'),
-						this.client.get('settings.public'),
-						this.client.get('subscriptions.get'),
-						this.client.get('rooms.get'),
-					]);
-					break;
-			}
+				await Promise.all(['userData', 'activeUsers'].map((stream) => this.subscribe(stream, '')));
 
-			await Promise.all(this.getLoginSubs().map(([stream, ...params]) => this.client.subscribe(stream, ...params)));
-
-			await Promise.all(this.getLoginMethods().map((params) => this.client.methodCall(...params)));
-
-			// client.loggedInInternal = true;
-			// client.userCount = userCount;
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error during login', e, credentials);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-			throw e;
+				await Promise.all([
+					this.get('me'),
+					this.get('permissions'),
+					this.get('settings.public'),
+					this.get('subscriptions.get'),
+					this.get('rooms.get'),
+				]);
+				break;
 		}
+
+		await Promise.all(this.getLoginSubs().map(([stream, ...params]) => this.subscribe(stream, ...params)));
+
+		await Promise.all(this.getLoginMethods().map((params) => this.client.methodCall(...params)));
 
 		this.loggedIn = true;
 	}
@@ -242,71 +239,49 @@ export class Client {
 		return subs;
 	};
 
+	@suppressError
+	@action
 	async sendMessage(msg: string, rid: string): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
 		await this.typing(rid, true);
 		await delay(1000);
-		const endAction = prom.actions.startTimer({ action: 'sendMessage' });
-		const end = prom.messages.startTimer();
+
 		try {
 			await this.client.sendMessage(msg, rid);
-			end({ status: 'success' });
-			endAction({ status: 'success' });
 		} catch (e) {
-			end({ status: 'error' });
-			endAction({ status: 'error' });
 			throw e;
 		}
 
 		await this.typing(rid, false);
 	}
 
+	@suppressError
+	@action
 	async typing(rid: string, typing: boolean): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
 		await this.client.methodCall('stream-notify-room', `${rid}/typing`, this.client.username, typing);
 	}
 
+	@suppressError
+	@action
 	async openRoom(rid = 'GENERAL', roomType = 'groups'): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const endAction = prom.actions.startTimer({ action: 'openRoom' });
-		const end = prom.openRoom.startTimer();
 		try {
 			const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
 
 			switch (this.type) {
 				case 'android':
 				case 'ios':
-					calls.push(this.client.get('commands.list'));
-					calls.push(this.client.get(`${roomType}.members`, { roomId: rid }));
-					calls.push(this.client.get(`${roomType}.roles`, { roomId: rid }));
-					calls.push(this.client.get(`${roomType}.history`, { roomId: rid }));
+					calls.push(this.get('commands.list'));
+					calls.push(this.get(`${roomType}.members`, { roomId: rid }));
+					calls.push(this.get(`${roomType}.roles`, { roomId: rid }));
+					calls.push(this.get(`${roomType}.history`, { roomId: rid }));
 					break;
 			}
 
 			await Promise.all(calls);
 
-			await this.client.post('subscriptions.read', { rid });
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
+			await this.post('subscriptions.read', { rid });
 		} catch (e) {
 			console.error('error open room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
 		}
-	}
-
-	async openLivechatRoom(_rid: string, _vid: string): Promise<void> {
-		// do nothing
 	}
 
 	getRandomSubscription(): Subscription {
@@ -316,160 +291,15 @@ export class Client {
 		return rand(subscriptions);
 	}
 
-	getRandomLivechatSubscription(): Subscription {
-		const subscriptions = this.subscriptions.filter(
-			(sub) => config.IGNORE_ROOMS.indexOf(sub.rid) === -1 && config.IGNORE_ROOMS.indexOf(sub.name) === -1 && sub.t === 'l',
-		);
-		return rand(subscriptions);
-	}
-
+	@suppressError
+	@action
 	async subscribeRoom(rid: string): Promise<void> {
-		const end = prom.roomSubscribe.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'roomSubscribe' });
-		try {
-			// await this.client.subscribeRoom(rid);
-
-			const topic = 'stream-notify-room';
-			await Promise.all([
-				this.client.subscribe('stream-room-messages', rid),
-				this.client.subscribe(topic, `${rid}/typing`),
-				this.client.subscribe(topic, `${rid}/deleteMessage`),
-			]);
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error subscribing room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-		}
-	}
-
-	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
-		try {
-			const routingConfig = await this.client.methodCall('livechat:getRoutingConfig');
-
-			end({ status: 'success' });
-			return routingConfig;
-		} catch (e) {
-			end({ status: 'error' });
-		}
-	}
-
-	async getAgentDepartments(): Promise<{ departments: Department[] } | undefined> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
-		try {
-			const departments = await this.client.get(`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`);
-
-			end({ status: 'success' });
-			return departments;
-		} catch (e) {
-			end({ status: 'error' });
-		}
-	}
-
-	async getQueuedInquiries(): Promise<{ inquiries: Inquiry[] } | undefined> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'getQueuedInquiries' });
-		try {
-			const inquiries = await this.client.get(`livechat/inquiries.queuedForUser`, { userId: this.client.userId });
-
-			end({ status: 'success' });
-			return inquiries;
-		} catch (e) {
-			end({ status: 'error' });
-		}
-	}
-
-	async subscribeDeps(deps: string[]): Promise<void> {
-		if (this.subscribedToLivechat) {
-			return;
-		}
-
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		try {
-			const topic = 'livechat-inquiry-queue-observer';
-
-			await Promise.all([
-				this.client.subscribe(topic, 'public'), // always to public
-				...deps.map(
-					(department) => this.client.subscribe(topic, `department/${department}`), // and to deps, if any
-				),
-			]);
-			this.subscribedToLivechat = true;
-		} catch (e) {
-			console.error('error subscribing to livechat', e);
-			this.subscribedToLivechat = false;
-		}
-	}
-
-	async takeInquiry(id: string): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'takeInquiry' });
-		const endInq = prom.inquiryTaken.startTimer();
-		try {
-			await this.client.methodCall('livechat:takeInquiry', id, {
-				clientAction: true,
-			});
-			end({ status: 'success' });
-			endInq({ status: 'success' });
-		} catch (e) {
-			end({ status: 'error' });
-			endInq({ status: 'error' });
-		}
-	}
-
-	async getInquiry(id: string): Promise<Inquiry | undefined> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'getOneInquiry' });
-		try {
-			const inq = await this.client.get(`livechat/inquiries.getOne`, {
-				roomId: id,
-			});
-
-			end({ status: 'success' });
-			return inq;
-		} catch (e) {
-			end({ status: 'error' });
-		}
-	}
-
-	async getVisitorInfo(vid: string): Promise<Visitor | undefined> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.actions.startTimer({ action: 'getVisitorInfo' });
-		try {
-			const v = await this.client.get(`livechat/visitors.info`, {
-				visitorId: vid,
-			});
-			end({ status: 'success' });
-			return v;
-		} catch (e) {
-			end({ status: 'error' });
-		}
+		const topic = 'stream-notify-room';
+		await Promise.all([
+			this.subscribe('stream-room-messages', rid),
+			this.subscribe(topic, `${rid}/typing`),
+			this.subscribe(topic, `${rid}/deleteMessage`),
+		]);
 	}
 
 	private async methodCallRest({ method, params, anon }: { method: string; params: unknown[]; anon?: boolean }) {
@@ -480,7 +310,7 @@ export class Client {
 			params,
 		});
 
-		const result = await this.client.post(`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(method)}`, {
+		const result = await this.post(`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(method)}`, {
 			message,
 		});
 

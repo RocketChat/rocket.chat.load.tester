@@ -1,6 +1,7 @@
 import type { Subscription } from '../definifitons';
 import * as prom from '../lib/prom';
 import { Client } from './Client';
+import { action, suppressError } from './decorators';
 
 export class WebClient extends Client {
 	loginPromise: Promise<void> | undefined;
@@ -15,22 +16,21 @@ export class WebClient extends Client {
 		await this.httpGet('/api/apps/actionButtons');
 
 		// this is done to simulate web client
-		await this.client.subscribe('meteor.loginServiceConfiguration');
-		await this.client.subscribe('meteor_autoupdate_clientVersions');
+		await this.subscribe('meteor.loginServiceConfiguration');
+		await this.subscribe('meteor_autoupdate_clientVersions');
 
-		// await client.subscribeNotifyAll();
-		await Promise.all(['public-settings-changed'].map((event) => this.client.subscribe('stream-notify-all', event, false)));
+		// await subscribeNotifyAll();
+		await Promise.all(['public-settings-changed'].map((event) => this.subscribe('stream-notify-all', event, false)));
 	}
 
+	@suppressError
+	@action
 	async login(): Promise<void> {
 		if (this.loginPromise) {
 			return this.loginPromise;
 		}
 
 		this.loginPromise = new Promise(async (resolve, reject) => {
-			const end = prom.login.startTimer();
-			const endAction = prom.actions.startTimer({ action: 'login' });
-
 			const { credentials } = this;
 
 			try {
@@ -38,7 +38,7 @@ export class WebClient extends Client {
 
 				const user = await this.client.login(credentials);
 
-				// await this.client.subscribeLoggedNotify();
+				// await this.subscribeLoggedNotify();
 				await Promise.all(
 					[
 						'deleteCustomSound',
@@ -54,10 +54,10 @@ export class WebClient extends Client {
 						'roles-change',
 						'voip.statuschanged',
 						'permissions-changed',
-					].map((event) => this.client.subscribe('stream-notify-logged', event, false)),
+					].map((event) => this.subscribe('stream-notify-logged', event, false)),
 				);
 
-				// await client.subscribeNotifyUser();
+				// await subscribeNotifyUser();
 				await Promise.all(
 					[
 						'uiInteraction',
@@ -70,7 +70,7 @@ export class WebClient extends Client {
 						'rooms-changed',
 						'webrtc',
 						'userData',
-					].map((event) => this.client.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
+					].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
 				);
 
 				await Promise.all(
@@ -84,7 +84,7 @@ export class WebClient extends Client {
 						'command/updated',
 						'command/removed',
 						'actions/changed',
-					].map((event) => this.client.subscribe('stream-apps', event, false)),
+					].map((event) => this.subscribe('stream-apps', event, false)),
 				);
 
 				await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
@@ -95,14 +95,8 @@ export class WebClient extends Client {
 
 				this.loggedIn = true;
 
-				end({ status: 'success' });
-				endAction({ action: 'login', status: 'success' });
-
 				resolve();
 			} catch (error) {
-				end({ status: 'error' });
-				endAction({ action: 'login', status: 'error' });
-
 				reject({ error, credentials });
 			}
 		});
@@ -110,33 +104,23 @@ export class WebClient extends Client {
 		return this.loginPromise;
 	}
 
+	@suppressError
+	@action
 	async listenPresence(userIds: string[]): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
+		const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
+		const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
 
-		const endAction = prom.actions.startTimer({ action: 'listenPresence' });
+		await this.get(`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`);
 
-		try {
-			const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
-			const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
+		((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
+			'',
+			{
+				...(newIds && { added: newIds }),
+				...(removeIds && { removed: removeIds }),
+			},
+		]);
 
-			await this.client.get(`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`);
-
-			((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
-				'',
-				{
-					...(newIds && { added: newIds }),
-					...(removeIds && { removed: removeIds }),
-				},
-			]);
-
-			this.usersPresence = [...new Set(userIds)];
-
-			endAction({ action: 'listenPresence', status: 'success' });
-		} catch (e) {
-			endAction({ action: 'listenPresence', status: 'error' });
-		}
+		this.usersPresence = [...new Set(userIds)];
 	}
 
 	protected getLoginMethods(): [string, string?][] {
@@ -160,87 +144,33 @@ export class WebClient extends Client {
 		return methods;
 	}
 
+	@suppressError
+	@action
 	async typing(rid: string, typing: boolean): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
 		await this.client.methodCall('stream-notify-room', `${rid}/user-activity`, this.client.username, typing);
 	}
 
+	@suppressError
+	@action
 	async openRoom(rid = 'GENERAL'): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
+		await Promise.all([
+			this.subscribeRoom(rid),
+			this.methodViaRest('loadHistory', rid, null, 50, new Date()),
+			this.methodViaRest('getRoomRoles', rid),
+		]);
 
-		const end = prom.openRoom.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'openRoom' });
-		try {
-			await Promise.all([
-				this.subscribeRoom(rid),
-				this.methodViaRest('loadHistory', rid, null, 50, new Date()),
-				this.methodViaRest('getRoomRoles', rid),
-			]);
-
-			await this.read(rid);
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error open room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-		}
+		await this.read(rid);
 	}
 
-	async openLivechatRoom(rid: string, vid: string): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.openRoom.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'openRoom' });
-		try {
-			await Promise.all([
-				this.subscribeRoom(rid),
-				this.methodViaRest('loadHistory', rid, null, 50, new Date()),
-				this.methodViaRest('getRoomRoles', rid),
-				this.getVisitorInfo(vid),
-			]);
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error open room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-		}
-	}
-
+	@suppressError
+	@action
 	async subscribeRoom(rid: string): Promise<void> {
-		if (!this.loggedIn) {
-			await this.login();
-		}
-
-		const end = prom.roomSubscribe.startTimer();
-		const endAction = prom.actions.startTimer({ action: 'subscribeRoom' });
-		try {
-			// await this.client.subscribeRoom(rid);
-
-			const topic = 'stream-notify-room';
-			await Promise.all([
-				this.client.subscribe('stream-room-messages', rid),
-				this.client.subscribe(topic, `${rid}/user-activity`),
-				this.client.subscribe(topic, `${rid}/deleteMessage`),
-				this.client.subscribe(topic, `${rid}/deleteMessageBulk`),
-			]);
-
-			end({ status: 'success' });
-			endAction({ status: 'success' });
-		} catch (e) {
-			console.error('error subscribing room', { uid: this.client.userId, rid }, e);
-			end({ status: 'error' });
-			endAction({ status: 'error' });
-		}
+		const topic = 'stream-notify-room';
+		await Promise.all([
+			this.subscribe('stream-room-messages', rid),
+			this.subscribe(topic, `${rid}/user-activity`),
+			this.subscribe(topic, `${rid}/deleteMessage`),
+			this.subscribe(topic, `${rid}/deleteMessageBulk`),
+		]);
 	}
 }

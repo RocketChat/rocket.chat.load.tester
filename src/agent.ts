@@ -7,9 +7,10 @@ import { config } from './config';
 import { rand } from './lib/rand';
 import { getClients } from './macros/getClients';
 import { populateDatabase, isOnlyUserPopulation } from './populate';
+import { OmnichannelClient } from './client/Omnichannel';
 
 export default (): void => {
-	let agents: Client[];
+	let agents: OmnichannelClient[];
 
 	const b = new (class extends BenchmarkRunner {
 		private db: Db | undefined;
@@ -117,7 +118,7 @@ export default (): void => {
 			}
 
 			console.log(this.usernames);
-			agents = await getClients(config.HOW_MANY_USERS, this.extraPrefix, this.getCurrentFromUsers(this.usernames));
+			agents = await getClients(OmnichannelClient, config.HOW_MANY_USERS, this.extraPrefix, this.getCurrentFromUsers(this.usernames));
 
 			const settings = this.db.collection('rocketchat_settings');
 			await settings.updateOne(
