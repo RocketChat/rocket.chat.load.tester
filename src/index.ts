@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import agent from './agent';
 import type { ObjectKeys } from './definifitons';
 import profile from './profile';
+import profileUser from './profile-login';
 
 import './server';
 
@@ -13,12 +14,13 @@ import './server';
 const actions = {
 	agent,
 	profile,
+	profileUser,
 };
 
 const actionsParam = process.argv[2];
 let actionList: ObjectKeys<typeof actions>;
 
-if (!actionsParam || !actionsParam.includes('process')) {
+if (!actionsParam?.includes('process')) {
 	// will run only 'profile' by default
 	actionList = ['profile'];
 } else {
