@@ -60,6 +60,8 @@
   },
   "dependencies": {
     "@koa/router": "^12.0.0",
+    "@rocket.chat/core-typings": "^6.3.0-rc.2",
+    "@rocket.chat/ddp-client": "^0.0.2-rc.2",
     "@rocket.chat/emitter": "^0.31",
     "@rocket.chat/sdk": "next",
     "@supercharge/promise-pool": "^2.4.0",

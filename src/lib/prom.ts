@@ -109,7 +109,7 @@ export const promWrapperRest = <F extends (endpoint: string, ...args: any[]) => 
 	}) as unknown as F;
 };
 
-export const promWrapperSubscribe = <F extends (...args: any[]) => Promise<any>>(fn: F): F => {
+export const promWrapperSubscribe = <F extends (...args: any[]) => any>(fn: F): F => {
 	return (async (...args: any[]) => {
 		const endTimer = subscriptions.startTimer({ name: args[0] });
 		try {
