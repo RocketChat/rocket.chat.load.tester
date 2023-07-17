@@ -1,10 +1,9 @@
 import { URLSearchParams } from 'url';
 
-import RocketChatClient from '@rocket.chat/sdk/lib/clients/Rocketchat';
+import { DDPSDK } from '@rocket.chat/ddp-client';
 import EJSON from 'ejson';
 import fetch from 'node-fetch';
-import type Api from '@rocket.chat/sdk/lib/api/api';
-import type { IAPIRequest, ISubscription } from '@rocket.chat/sdk/interfaces';
+import type { UserStatus } from '@rocket.chat/core-typings';
 
 import { config } from '../config';
 import type { Subscription } from '../definifitons';
@@ -14,21 +13,18 @@ import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
 import { action, errorLogger, suppressError } from './decorators';
 
-const logger = {
-	debug: (...args: any) => true || console.log(args),
-	info: (...args: any) => true || console.log(args),
-	warning: (...args: any) => true || console.log(args),
-	warn: (...args: any) => true || console.log(args),
-	error: (...args: any) => {
-		console.error(args);
-	},
-};
-
-const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
-
-const useSsl = typeof SSL_ENABLED !== 'undefined' ? ['yes', 'true'].includes(SSL_ENABLED) : true;
+const { LOG_IN = 'yes' } = process.env;
 
 export type ClientType = 'web' | 'android' | 'ios';
+
+declare module '@rocket.chat/rest-typings' {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	interface Endpoints {
+		'/v1/permissions': {
+			get: () => unknown;
+		};
+	}
+}
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ClientLoadTest {
@@ -46,7 +42,7 @@ export interface ClientLoadTest {
 
 	typing(rid: string, typing: boolean): Promise<void>;
 
-	openRoom(rid: string, roomType: string): Promise<void>;
+	openRoom(rid: string, roomType: 'groups' | 'channels'): Promise<void>;
 
 	subscribeRoom(rid: string): Promise<void>;
 
@@ -54,11 +50,11 @@ export interface ClientLoadTest {
 
 	getRandomSubscription(): Subscription | undefined;
 
-	get: Api['get'];
+	get: DDPSDK['rest']['get'];
 
-	post: Api['post'];
+	post: DDPSDK['rest']['post'];
 
-	subscribe: RocketChatClient['subscribe'];
+	subscribe: DDPSDK['client']['subscribe'];
 }
 
 export class Client implements ClientLoadTest {
@@ -82,7 +78,7 @@ export class Client implements ClientLoadTest {
 		  }
 		| undefined = undefined;
 
-	client: RocketChatClient;
+	client: DDPSDK;
 
 	subscribedToLivechat = false;
 
@@ -102,39 +98,33 @@ export class Client implements ClientLoadTest {
 			this.defaultCredentials = credentials;
 		}
 
-		const client = new RocketChatClient({
-			logger,
-			host: this.host,
-			useSsl,
-		});
+		this.client = DDPSDK.create(this.host);
 
-		this.client = client;
+		this.get = prom.promWrapperRest('GET', this.client.rest.get);
+		this.post = prom.promWrapperRest('POST', this.client.rest.post);
 
-		this.get = prom.promWrapperRest('GET', (...args) => this.client.get(...args));
-		this.post = prom.promWrapperRest('POST', (...args) => this.client.post(...args));
-
-		this.subscribe = prom.promWrapperSubscribe((...args) => this.client.subscribe(...args));
+		this.subscribe = prom.promWrapperSubscribe(this.client.client.subscribe);
 	}
 
 	status: 'logged' | 'not-logged' | 'logging' = 'not-logged';
 
-	get: IAPIRequest;
+	get: DDPSDK['rest']['get'];
 
-	post: IAPIRequest;
+	post: DDPSDK['rest']['post'];
 
-	subscribe: (topic: string, ...args: any[]) => Promise<ISubscription>;
+	subscribe: DDPSDK['client']['subscribe'];
 
 	@suppressError
 	@action
 	async beforeLogin(): Promise<void> {
-		await this.client.connect({});
+		await this.client.client.connect();
 
 		prom.connected.inc();
 
 		switch (this.type) {
 			case 'android':
 			case 'ios':
-				await Promise.all([this.get('settings.public'), this.get('settings.oauth')]);
+				await Promise.all([this.get('/v1/settings.public'), this.get('/v1/settings.oauth')]);
 				break;
 		}
 	}
@@ -172,21 +162,21 @@ export class Client implements ClientLoadTest {
 	@suppressError
 	@action
 	async joinRoom(rid = 'GENERAL') {
-		await this.client.joinRoom({ rid });
+		await this.client.rest.post('/v1/channels.join', { roomId: rid });
 	}
 
 	@suppressError
 	@action
 	async setStatus() {
-		const status = rand(['online', 'away', 'offline', 'busy']);
+		const status = rand(['online', 'away', 'offline', 'busy']) as UserStatus;
 
-		await this.post('users.setStatus', { status });
+		await this.post('/v1/users.setStatus', { status });
 	}
 
 	@suppressError
 	@action
 	async read(rid: string): Promise<void> {
-		await this.post('subscriptions.read', { rid });
+		await this.post('/v1/subscriptions.read', { rid });
 	}
 
 	@suppressError
@@ -196,31 +186,33 @@ export class Client implements ClientLoadTest {
 
 		const { credentials } = this;
 
-		const user = await this.client.login(credentials);
+		await this.client.account.loginWithPassword(credentials.username, credentials.password);
 
 		// do one by one as doing three at same time was hanging
 		switch (this.type) {
 			case 'android':
 			case 'ios':
 				await Promise.all(
-					['rooms-changed', 'subscriptions-changed'].map((stream) => this.subscribe('stream-notify-user', `${user.id}/${stream}`)),
+					['rooms-changed', 'subscriptions-changed'].map((stream) =>
+						this.subscribe('stream-notify-user', `${this.client.account.uid!}/${stream}`),
+					),
 				);
 
 				await Promise.all(['userData', 'activeUsers'].map((stream) => this.subscribe(stream, '')));
 
 				await Promise.all([
-					this.get('me'),
-					this.get('permissions'),
-					this.get('settings.public'),
-					this.get('subscriptions.get'),
-					this.get('rooms.get'),
+					this.get('/v1/me'),
+					this.get('/v1/permissions' as any),
+					this.get('/v1/settings.public'),
+					this.get('/v1/subscriptions.get', {}),
+					this.get('/v1/rooms.get', {} as any),
 				]);
 				break;
 		}
 
 		await Promise.all(this.getLoginSubs().map(([stream, ...params]) => this.subscribe(stream, ...params)));
 
-		await Promise.all(this.getLoginMethods().map((params) => this.client.methodCall(...params)));
+		await Promise.all(this.getLoginMethods().map((params) => this.client.call(...params)));
 
 		this.status = 'logged';
 	}
@@ -247,11 +239,7 @@ export class Client implements ClientLoadTest {
 		await this.typing(rid, true);
 		await delay(1000);
 
-		try {
-			await this.client.sendMessage(msg, rid);
-		} catch (e) {
-			throw e;
-		}
+		await this.client.rest.post('/v1/chat.sendMessage', { message: { msg, rid } });
 
 		await this.typing(rid, false);
 	}
@@ -259,31 +247,27 @@ export class Client implements ClientLoadTest {
 	@suppressError
 	@action
 	async typing(rid: string, typing: boolean): Promise<void> {
-		await this.client.methodCall('stream-notify-room', `${rid}/typing`, this.client.username, typing);
+		await this.client.call('stream-notify-room', `${rid}/typing`, this.client.account.user!.username!, typing);
 	}
 
 	@suppressError
 	@action
-	async openRoom(rid = 'GENERAL', roomType = 'groups'): Promise<void> {
-		try {
-			const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
+	async openRoom(rid = 'GENERAL', roomType: 'groups' | 'channels' = 'groups'): Promise<void> {
+		const calls: Promise<unknown>[] = [this.subscribeRoom(rid)];
 
-			switch (this.type) {
-				case 'android':
-				case 'ios':
-					calls.push(this.get('commands.list'));
-					calls.push(this.get(`${roomType}.members`, { roomId: rid }));
-					calls.push(this.get(`${roomType}.roles`, { roomId: rid }));
-					calls.push(this.get(`${roomType}.history`, { roomId: rid }));
-					break;
-			}
-
-			await Promise.all(calls);
-
-			await this.post('subscriptions.read', { rid });
-		} catch (e) {
-			console.error('error open room', { uid: this.client.userId, rid }, e);
+		switch (this.type) {
+			case 'android':
+			case 'ios':
+				calls.push(this.get('/v1/commands.list'));
+				calls.push(this.get(`/v1/${roomType}.members`, { roomId: rid }));
+				calls.push(this.get(`/v1/${roomType}.roles`, { roomId: rid }));
+				calls.push(this.get(`/v1/${roomType}.history`, { roomId: rid }));
+				break;
 		}
+
+		await Promise.all(calls);
+
+		await this.post('/v1/subscriptions.read', { rid });
 	}
 
 	getRandomSubscription(): Subscription {
@@ -312,15 +296,11 @@ export class Client implements ClientLoadTest {
 			params,
 		});
 
-		const result = await this.post(`${anon ? 'method.callAnon' : 'method.call'}/${encodeURIComponent(method)}`, {
+		const result = await this.post(`${anon ? '/v1/method.callAnon' : '/v1/method.call'}/${encodeURIComponent(method)}`, {
 			message,
 		});
 
-		if (!result.success) {
-			throw new Error(result.error);
-		}
-
-		const msgResult = EJSON.parse(result.message);
+		const msgResult = EJSON.parse(result.message as unknown as string);
 
 		return msgResult.result;
 	}

@@ -1,4 +1,6 @@
-import type { Department, Inquiry, Subscription, Visitor } from '../definifitons';
+import type { IInquiry, ILivechatDepartmentAgents, Serialized } from '@rocket.chat/core-typings';
+
+import type { Inquiry, Subscription } from '../definifitons';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
 import { Client } from './Client';
@@ -19,7 +21,7 @@ export class OmnichannelClient extends Client {
 
 		const end = prom.actions.startTimer({ action: 'getRoutingConfig' });
 		try {
-			const routingConfig = await this.client.methodCall('livechat:getRoutingConfig');
+			const routingConfig = await this.client.call('livechat:getRoutingConfig');
 
 			end({ status: 'success' });
 			return routingConfig;
@@ -28,14 +30,14 @@ export class OmnichannelClient extends Client {
 		}
 	}
 
-	async getAgentDepartments(): Promise<{ departments: Department[] } | undefined> {
+	async getAgentDepartments(): Promise<{ departments: ILivechatDepartmentAgents[] } | undefined> {
 		if (this.status === 'logging') {
 			await this.login();
 		}
 
 		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
 		try {
-			const departments = await this.get(`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`);
+			const departments = await this.get(`/v1/livechat/agents/${this.client.account.uid!}/departments`, { enabledDepartmentsOnly: 'true' });
 
 			end({ status: 'success' });
 			return departments;
@@ -51,7 +53,7 @@ export class OmnichannelClient extends Client {
 
 		const end = prom.actions.startTimer({ action: 'getQueuedInquiries' });
 		try {
-			const inquiries = await this.get(`livechat/inquiries.queuedForUser`, { userId: this.client.userId });
+			const inquiries = await this.get(`/v1/livechat/inquiries.queuedForUser`, {});
 
 			end({ status: 'success' });
 			return inquiries;
@@ -93,7 +95,7 @@ export class OmnichannelClient extends Client {
 		const end = prom.actions.startTimer({ action: 'takeInquiry' });
 		const endInq = prom.inquiryTaken.startTimer();
 		try {
-			await this.client.methodCall('livechat:takeInquiry', id, {
+			await this.client.call('livechat:takeInquiry', id, {
 				clientAction: true,
 			});
 			end({ status: 'success' });
@@ -104,36 +106,36 @@ export class OmnichannelClient extends Client {
 		}
 	}
 
-	async getInquiry(id: string): Promise<Inquiry | undefined> {
+	async getInquiry(id: string): Promise<Serialized<IInquiry> | undefined> {
 		if (this.status === 'logging') {
 			await this.login();
 		}
 
 		const end = prom.actions.startTimer({ action: 'getOneInquiry' });
 		try {
-			const inq = await this.get(`livechat/inquiries.getOne`, {
+			const { inquiry } = await this.get(`/v1/livechat/inquiries.getOne`, {
 				roomId: id,
 			});
 
 			end({ status: 'success' });
-			return inq;
+			return inquiry || undefined;
 		} catch (e) {
 			end({ status: 'error' });
 		}
 	}
 
-	async getVisitorInfo(vid: string): Promise<Visitor | undefined> {
+	async getVisitorInfo(vid: string) {
 		if (this.status === 'logging') {
 			await this.login();
 		}
 
 		const end = prom.actions.startTimer({ action: 'getVisitorInfo' });
 		try {
-			const v = await this.get(`livechat/visitors.info`, {
+			const { visitor } = await this.get(`/v1/livechat/visitors.info`, {
 				visitorId: vid,
 			});
 			end({ status: 'success' });
-			return v;
+			return visitor;
 		} catch (e) {
 			end({ status: 'error' });
 		}
@@ -157,7 +159,7 @@ export class OmnichannelClient extends Client {
 			end({ status: 'success' });
 			endAction({ status: 'success' });
 		} catch (e) {
-			console.error('error open room', { uid: this.client.userId, rid }, e);
+			console.error('error open room', { uid: this.client.account.uid, rid }, e);
 			end({ status: 'error' });
 			endAction({ status: 'error' });
 		}
