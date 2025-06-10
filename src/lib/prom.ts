@@ -99,7 +99,7 @@ export const promWrapperRest = <F extends (endpoint: string, ...args: any[]) => 
 
 		const endTimer = rest.startTimer({ endpoint, method });
 		try {
-			const result = await fn(endpoint, ...args);
+			const result = await fn(url, ...args);
 			endTimer({ status: 'success' });
 			return result;
 		} catch (e) {
