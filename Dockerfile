@@ -18,7 +18,7 @@ COPY --from=builder /app/dist/ /app
 
 WORKDIR /app
 
-ENV PORT=3000 \
+ENV PORT=4000 \
     NODE_ENV=production \
     DEBUG=app:server
 
