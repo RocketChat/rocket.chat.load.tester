@@ -7,7 +7,7 @@ export class WebClient extends Client {
 	loginPromise: Promise<void> | undefined;
 
 	async beforeLogin(): Promise<void> {
-		await this.client.connect({});
+		await this.client.connection.connect();
 
 		prom.connected.inc();
 
@@ -41,7 +41,7 @@ export class WebClient extends Client {
 
 		await this.beforeLogin();
 
-		const user = await this.client.login(credentials);
+		await this.client.account.loginWithPassword(credentials.username, credentials.password);
 
 		// await this.subscribeLoggedNotify();
 		await Promise.all(
@@ -75,7 +75,7 @@ export class WebClient extends Client {
 				'rooms-changed',
 				'webrtc',
 				'userData',
-			].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
+			].map((event) => this.subscribe('stream-notify-user', `${this.client.account.uid}/${event}`, false)),
 		);
 
 		await Promise.all(
@@ -107,9 +107,9 @@ export class WebClient extends Client {
 		const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
 		const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
 
-		await this.get(`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`);
+		await this.get(`/v1/users.presence`, { ids: newIds });
 
-		((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
+		await this.client.client.subscribe('stream-user-presence', [
 			'',
 			{
 				...(newIds && { added: newIds }),
@@ -144,7 +144,7 @@ export class WebClient extends Client {
 	@suppressError
 	@action
 	async typing(rid: string, typing: boolean): Promise<void> {
-		await this.client.methodCall('stream-notify-room', `${rid}/user-activity`, this.client.username, typing);
+		await this.client.call('stream-notify-room', `${rid}/user-activity`, this.client.account.user!.username, typing);
 	}
 
 	@suppressError
