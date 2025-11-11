@@ -144,7 +144,7 @@ export class WebClient extends Client {
 	@suppressError
 	@action
 	async typing(rid: string, typing: boolean): Promise<void> {
-		await this.client.methodCall('stream-notify-room', `${rid}/user-activity`, this.client.username, typing);
+		await this.client.methodCall('stream-notify-room', `${rid}/user-activity`, this.client.username, typing ? ['user-typing'] : []);
 	}
 
 	@suppressError
