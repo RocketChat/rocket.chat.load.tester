@@ -92,6 +92,8 @@ export class WebClient extends Client {
 			].map((event) => this.subscribe('stream-apps', event, false)),
 		);
 
+		await this.get('roles.list');
+
 		await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
 
 		const subscriptions = await this.methodViaRest('subscriptions/get', {});
@@ -127,9 +129,11 @@ export class WebClient extends Client {
 		methods.push(['listCustomSounds']);
 		methods.push(['listCustomUserStatus']);
 		methods.push(['license:isEnterprise']);
-		methods.push(['loadLocale', 'pt-BR']);
-		methods.push(['getUserRoles']);
-		methods.push(['livechat:getRoutingConfig']);
+		// methods.push(['loadLocale', 'pt-BR']);
+
+		// TODO replaced by /v1/livechat/config/routing and /api/v1/livechat/priorities
+		// methods.push(['livechat:getRoutingConfig']);
+
 		methods.push(['rooms/get']);
 		methods.push(['permissions/get']);
 
