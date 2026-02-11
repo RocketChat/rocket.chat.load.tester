@@ -157,7 +157,7 @@ export class WebClient extends Client {
 		await Promise.all([
 			this.subscribeRoom(rid),
 			this.methodViaRest('loadHistory', rid, null, 50, new Date()),
-			this.methodViaRest('getRoomRoles', rid),
+			this.get(`rooms.roles?rid=${rid}`),
 		]);
 
 		await this.read(rid);
