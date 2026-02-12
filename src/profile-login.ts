@@ -9,42 +9,25 @@ import { getClients } from './macros/getClients';
 import { populateDatabase, isFullPopulation } from './populate';
 import { WebClient } from './client/WebClient';
 import { AlreadyLoggingError } from './errors/AlreadyLoggingError';
-
-const suppressError = <F extends (...args: any) => Promise<any>>(fn: F): F => {
-	return (async (...args: any) => {
-		try {
-			return await fn(...args);
-		} catch (error) {
-			// ignore AlreadyLoggingError
-			if (error instanceof AlreadyLoggingError) {
-				return;
-			}
-			console.error(error);
-		}
-	}) as F;
-};
+import { suppressError } from './lib/suppressError';
 
 export default (): void => {
-	let clients: Client[];
+	let clients: Set<Client>;
+
+	const connectedClients: Set<Client> = new Set();
 
 	async function getLoggedInClient() {
-		const client = rand(clients);
+		const client = rand([...connectedClients.values()]);
 
 		if (!client) {
 			throw new Error('No logged in client found');
-		}
-
-		if (client.status === 'logging') {
-			throw new AlreadyLoggingError();
 		}
 
 		if (client.status === 'logged') {
 			return client;
 		}
 
-		await client.login();
-
-		return client;
+		throw new Error('No logged in client found');
 	}
 
 	const b = new (class extends BenchmarkRunner {
@@ -97,7 +80,7 @@ export default (): void => {
 		}
 
 		async setup() {
-			clients = await getClients(WebClient, config.HOW_MANY_USERS);
+			clients = new Set(await getClients(WebClient, config.HOW_MANY_USERS));
 		}
 	})({
 		message: config.MESSAGES_PER_SECOND,
@@ -105,6 +88,28 @@ export default (): void => {
 		openRoom: config.OPEN_ROOM_PER_SECOND,
 		setUserStatus: config.SET_STATUS_PER_SECOND,
 		subscribePresence: config.SUBSCRIBE_PRESENCE_PER_SECOND,
+		login: config.LOGIN_PER_SECOND,
+	});
+
+	b.on('login', async () => {
+		const client = rand([...clients.values()]);
+
+		if (!client) {
+			throw new Error('No client found');
+		}
+
+		if (client.status === 'logging') {
+			throw new AlreadyLoggingError();
+		}
+
+		if (client.status === 'logged') {
+			return client;
+		}
+
+		await client.login();
+
+		clients.delete(client);
+		connectedClients.add(client);
 	});
 
 	b.on('ready', async () => {
@@ -121,11 +126,7 @@ export default (): void => {
 			if (!subscription) {
 				return;
 			}
-			try {
-				await client.sendMessage(config.MESSAGE, subscription.rid);
-			} catch (error) {
-				console.error('Error sending message', error);
-			}
+			await client.sendMessage(config.MESSAGE, subscription.rid);
 		}),
 	);
 
@@ -144,9 +145,6 @@ export default (): void => {
 			const client = await getLoggedInClient();
 
 			const subscription = client.getRandomSubscription();
-			if (!subscription) {
-				return;
-			}
 
 			await client.read(subscription.rid);
 		}),
@@ -158,9 +156,7 @@ export default (): void => {
 			const client = await getLoggedInClient();
 
 			const subscription = client.getRandomSubscription();
-			if (!subscription) {
-				return;
-			}
+
 			await client.openRoom(subscription.rid);
 		}),
 	);

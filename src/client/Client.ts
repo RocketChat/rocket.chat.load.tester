@@ -290,7 +290,13 @@ export class Client implements ClientLoadTest {
 		const subscriptions = this.subscriptions.filter(
 			(sub) => config.IGNORE_ROOMS.indexOf(sub.rid) === -1 && config.IGNORE_ROOMS.indexOf(sub.name) === -1,
 		);
-		return rand(subscriptions);
+
+		const sub = rand(subscriptions);
+
+		if (!sub) {
+			throw new Error('no subscriptions');
+		}
+		return sub;
 	}
 
 	@suppressError
