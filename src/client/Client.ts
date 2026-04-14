@@ -10,19 +10,10 @@ import { config } from '../config';
 import type { Subscription } from '../definifitons';
 import { delay } from '../lib/delay';
 import { username, email } from '../lib/ids';
+import { logger } from '../lib/logger';
 import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
 import { action, errorLogger, suppressError } from './decorators';
-
-const logger = {
-	debug: (...args: any) => true || console.log(args),
-	info: (...args: any) => true || console.log(args),
-	warning: (...args: any) => true || console.log(args),
-	warn: (...args: any) => true || console.log(args),
-	error: (...args: any) => {
-		console.error(args);
-	},
-};
 
 const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
 
