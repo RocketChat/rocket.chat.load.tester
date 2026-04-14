@@ -38,6 +38,10 @@ export default (): void => {
 			return client;
 		}
 
+		if (client.status === 'error') {
+			throw new Error('Client in error state');
+		}
+
 		await client.login();
 
 		return client;

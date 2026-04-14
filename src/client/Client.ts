@@ -25,7 +25,7 @@ export type ClientType = 'web' | 'android' | 'ios';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ClientLoadTest {
-	status: 'logged' | 'not-logged' | 'logging';
+	status: 'logged' | 'not-logged' | 'logging' | 'error';
 
 	joinRoom(rid: string): Promise<void>;
 
@@ -103,13 +103,27 @@ export class Client implements ClientLoadTest {
 
 		this.client = client;
 
+		// (await this.client.socket)
+
+		this.client.socket
+			.then((socket) => {
+				(socket as any).ddp.on('close', (err: unknown) => {
+					logger.error({ msg: 'DDP closed', current: this.current, err });
+					prom.connected.dec();
+					this.status = 'error';
+				});
+			})
+			.catch((err) => {
+				logger.error({ msg: 'Error connecting to socket', current: this.current, err });
+			});
+
 		this.get = prom.promWrapperRest('GET', (...args) => this.client.get(...args));
 		this.post = prom.promWrapperRest('POST', (...args) => this.client.post(...args));
 
 		this.subscribe = prom.promWrapperSubscribe((...args) => this.client.subscribe(...args));
 	}
 
-	status: 'logged' | 'not-logged' | 'logging' = 'not-logged';
+	status: 'logged' | 'not-logged' | 'logging' | 'error' = 'not-logged';
 
 	get: IAPIRequest;
 
