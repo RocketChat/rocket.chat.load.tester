@@ -5,7 +5,6 @@ import EJSON from 'ejson';
 import fetch from 'node-fetch';
 import type Api from '@rocket.chat/sdk/lib/api/api';
 import type { IAPIRequest, ISubscription } from '@rocket.chat/sdk/interfaces';
-import pino from 'pino';
 
 import { config } from '../config';
 import type { Subscription } from '../definifitons';
@@ -15,7 +14,15 @@ import * as prom from '../lib/prom';
 import { rand } from '../lib/rand';
 import { action, errorLogger, suppressError } from './decorators';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'error' });
+const logger = {
+	debug: (...args: any) => true || console.log(args),
+	info: (...args: any) => true || console.log(args),
+	warning: (...args: any) => true || console.log(args),
+	warn: (...args: any) => true || console.log(args),
+	error: (...args: any) => {
+		console.error(args);
+	},
+};
 
 const { SSL_ENABLED = 'no', LOG_IN = 'yes' } = process.env;
 
