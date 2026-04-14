@@ -6,10 +6,10 @@ import { action, suppressError } from './decorators';
 export class WebClient extends Client {
 	loginPromise: Promise<void> | undefined;
 
+	@suppressError
+	@action
 	async beforeLogin(): Promise<void> {
 		await this.client.connect({});
-
-		prom.connected.inc();
 
 		await this.methodAnonViaRest('public-settings/get');
 
@@ -21,6 +21,8 @@ export class WebClient extends Client {
 
 		// await subscribeNotifyAll();
 		await Promise.all(['public-settings-changed'].map((event) => this.subscribe('stream-notify-all', event, false)));
+
+		prom.connected.inc();
 	}
 
 	@suppressError
