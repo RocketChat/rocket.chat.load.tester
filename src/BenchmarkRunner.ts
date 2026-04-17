@@ -23,9 +23,20 @@ type EventKeys =
 	| 'subscribePresence'
 	| 'getRoutingConfig'
 	| 'getQueuedInquiries'
-	| 'takeInquiry';
+	| 'takeInquiry'
+	| 'login';
 
-const eventsPerSecond = (events: number): number => Math.ceil(1000 / events);
+/**
+ * Events per second
+ * Given a rate of per second, returns the value in milliseconds between each event
+ * */
+export const eventsPerSecond = (rate: number): number => Math.ceil(1000 / rate);
+
+/**
+ * Events per second per user
+ * Given a rate of per second and the number of users, returns the value in milliseconds between each event
+ * */
+export const eventsPerUser = (ratePerSecond: number, users: number): number => eventsPerSecond(ratePerSecond) / users;
 
 type Events<T> = { [k in EventKeys]?: T };
 
@@ -63,9 +74,13 @@ export abstract class BenchmarkRunner extends Emitter<
 			if (!rate) {
 				continue;
 			}
-			setInterval(() => {
-				this.emit(event, undefined);
-			}, eventsPerSecond(rate));
+			const register = () =>
+				setTimeout(() => {
+					this.emit(event, undefined);
+					register();
+				}, this.getEventDelay(rate, event));
+
+			register();
 		}
 		this.emit('timers');
 	}
@@ -87,4 +102,11 @@ export abstract class BenchmarkRunner extends Emitter<
 	abstract setup(): Promise<void>;
 
 	abstract populate(): Promise<void>;
+
+	/**
+	 * Given a rate of per second, returns the value in milliseconds between each event
+	 * */
+	public getEventDelay(rate: number, _name: string): number {
+		return eventsPerSecond(rate);
+	}
 }

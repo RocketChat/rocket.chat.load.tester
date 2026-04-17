@@ -140,6 +140,10 @@ export default (): void => {
 
 	b.on('getRoutingConfig', async () => {
 		const agent = rand(agents);
+
+		if (!agent) {
+			return;
+		}
 		await agent.getRoutingConfig();
 		const { departments } = (await agent.getAgentDepartments()) || {
 			departments: [],
@@ -151,11 +155,17 @@ export default (): void => {
 
 	b.on('getQueuedInquiries', async () => {
 		const agent = rand(agents);
+		if (!agent) {
+			return;
+		}
 		await agent.getQueuedInquiries();
 	});
 
 	b.on('takeInquiry', async () => {
 		const agent = rand(agents);
+		if (!agent) {
+			return;
+		}
 		const response = await agent.getQueuedInquiries();
 		if (!response?.inquiries) {
 			return;
@@ -170,6 +180,10 @@ export default (): void => {
 		}
 
 		const processedInquiry = rand(inquiries);
+
+		if (!processedInquiry) {
+			return;
+		}
 		try {
 			// Re-fetch inquiry
 			await agent.getInquiry(processedInquiry._id);
@@ -186,6 +200,9 @@ export default (): void => {
 
 	b.on('message', async () => {
 		const agent = rand(agents);
+		if (!agent) {
+			return;
+		}
 		const sub = agent.getRandomLivechatSubscription();
 
 		if (!sub) {
