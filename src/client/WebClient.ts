@@ -111,7 +111,16 @@ export class WebClient extends Client {
 		const newIds = userIds.filter((id) => !this.usersPresence.includes(id));
 		const removeIds = this.usersPresence.filter((id) => !userIds.includes(id));
 
-		await this.get(`users.presence?ids[]=${newIds.join('&ids[]=')}&_empty=`);
+		// Rocket.Chat >= 8.4.0 validates this query with additionalProperties: false, so any
+		// extra param is rejected with a 400. The ids are sent as a single comma separated
+		// string because the server splits it and it is not subject to the qs arrayLimit of
+		// 500 that applies to ids[] style arrays. Chunks of 100 keep the URL around 4KB:
+		// tester ids are ~40 chars each, and requests fail once the URL passes nginx's
+		// default 8KB request line limit or Node's 16KB header limit.
+		for (let offset = 0; offset < newIds.length; offset += 100) {
+			// eslint-disable-next-line no-await-in-loop
+			await this.get('users.presence', { ids: newIds.slice(offset, offset + 100).join(',') });
+		}
 
 		((await this.client.socket) as any).ddp.subscribe('stream-user-presence', [
 			'',
@@ -159,7 +168,7 @@ export class WebClient extends Client {
 		await Promise.all([
 			this.subscribeRoom(rid),
 			this.methodViaRest('loadHistory', rid, null, 50, new Date()),
-			this.get(`rooms.roles?rid=${rid}`),
+			this.get('rooms.roles', { rid }),
 		]);
 
 		await this.read(rid);
