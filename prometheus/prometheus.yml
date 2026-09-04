@@ -12,7 +12,14 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
   - job_name: 'load-tester'
-    static_configs:
-      - targets:
-        - load-scale:4000
+    # DNS service discovery, not a static target: with `docker compose up --scale load-scale=N`
+    # the service name resolves to one A record per container. A static target only ever scrapes
+    # whichever single container DNS answers with, so every other loader stays invisible and the
+    # dashboard silently reports a fraction of the real load.
+    dns_sd_configs:
+      - names:
+          - load-scale
+        type: A
+        port: 4000
+        refresh_interval: 15s
 
