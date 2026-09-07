@@ -26,7 +26,7 @@ curl -sk -X POST -H "X-User-Id: $ADMIN_ID" -H "X-Auth-Token: $ADMIN_TOKEN" \
 
    It bites hardest during the login phase, and mostly because of how the tester works rather than a limit real users hit. The tester calls `public-settings/get` anonymously over REST (`method.callAnon`), and for anonymous calls the server has no identity to bucket by, so it buckets by client IP. Every simulated client on one load generator therefore shares a single bucket, and a rule matching all non-stream methods applies `DDP_Rate_Limit_Connection_By_Method`, 10 requests per 10 seconds by default. A 50 user login burst from one host gets most of those calls rejected with `too-many-requests`. A real browser makes the same call over its own DDP connection, so each user gets their own bucket and never sees this.
 
-   The tester suppresses these errors, so the run still reports every user as logged in while a large share of them silently skipped the settings fetch. Watch for `error in beforeLogin` in the output, and for a `beforeLogin` error series on the dashboard.
+   These errors are suppressed inside `beforeLogin`, so the affected users still log in successfully, but they skip the settings fetch and the stream subscriptions and therefore generate less load than a real client. The tester counts them and prints a warning at startup saying how many logged in with an incomplete handshake. Watch for that warning, for `error in beforeLogin` in the output, and for a `beforeLogin` error series on the dashboard.
 
    Turn off `DDP_Rate_Limit_IP_Enabled`, `DDP_Rate_Limit_User_Enabled`, `DDP_Rate_Limit_Connection_Enabled`, `DDP_Rate_Limit_User_By_Method_Enabled` and `DDP_Rate_Limit_Connection_By_Method_Enabled`, or raise their allowances well above the expected burst:
 
@@ -81,7 +81,7 @@ Do not multiply the rates by 86400. If the computed totals print hundreds of eve
 | `SUBSCRIBE_PRESENCE_RATE` | `100` | Presence subscription changes per user per day |
 | `IGNORE_ROOMS` | `GENERAL` | Comma separated room ids/names excluded from actions |
 
-## Run
+## Run from source
 
 ```bash
 npm install
@@ -110,7 +110,93 @@ Logged users total: 10
 Starting sending messages
 ```
 
-`Logged users total` must equal `HOW_MANY_USERS`. Stop the run with Ctrl+C.
+The tester prints `Logged users total: N of M`, where N counts only the clients that actually reached the logged in state. N should equal M. If it is lower, the tester warns, keeps the failed clients in the pool and retries them the next time they are picked, so N can recover during the run. If nothing logs in at all, the run aborts with a non-zero exit code. Stop the run with Ctrl+C.
+
+## Run with Docker
+
+Published images are on GitHub Container Registry as `ghcr.io/rocketchat/rocket.chat.load.tester`. Useful tags:
+
+| Tag | Points at |
+| --- | --- |
+| `0.8.1` | A specific release. Use this for repeatable runs. |
+| `0.8` | The latest patch of that minor version. |
+| `latest` | The most recent release. |
+| `main` | The most recent build of the main branch, which may be ahead of any release. |
+| `sha-1003a5c` | One exact commit. Useful when you need a fix that is not in a release yet. |
+
+The images are built for `linux/amd64` only. On an ARM machine, an Apple Silicon Mac for example, plain `docker pull` fails with `no matching manifest for linux/arm64/v8`. Add `--platform linux/amd64` to both the pull and the run, and accept that emulation costs some throughput, so give each container fewer users than you would on an x86 host.
+
+### A single loader
+
+```bash
+docker run --rm --platform linux/amd64 -p 4000:4000 \
+  -e HOST_URL=http://rocketchat.example.com -e SSL_ENABLED=no \
+  -e DATABASE_URL='mongodb://mongo.example.com:27017/?directConnection=true' \
+  -e DATABASE_NAME=rocketchat \
+  -e TASK_ID=run1 -e HOW_MANY_USERS=10 -e USERS_PER_ROOM=10 -e LOGIN_BATCH=5 \
+  -e MESSAGE_SENDING_RATE=100 -e OPEN_ROOM_RATE=10 -e READ_MESSAGE_RATE=10 \
+  -e SET_STATUS_RATE=10 -e SUBSCRIBE_PRESENCE_RATE=100 \
+  ghcr.io/rocketchat/rocket.chat.load.tester:0.8.1
+```
+
+Every setting from the configuration reference above is passed with `-e`. Three details decide whether this works:
+
+- **The container must be able to reach both Rocket.Chat and MongoDB.** Inside a container, `localhost` is the container itself. When both run on the same machine as Docker, use `host.docker.internal` in `HOST_URL` and `DATABASE_URL`. That name resolves automatically on Docker Desktop for Mac and Windows; on Linux add `--add-host=host.docker.internal:host-gateway`, or use the host's real address.
+- **Publish port 4000** with `-p 4000:4000` if you want to read metrics from outside the container. The tester always serves them on 4000 internally.
+- **MongoDB access is required** for the populate step that creates the test users, so the database must be reachable from the container and not only from Rocket.Chat.
+
+A healthy start looks the same as a source run, ending with `Logged users total: N of N`.
+
+### With the bundled Compose stack
+
+`docker compose up -d --build` runs the tester together with Prometheus and Grafana, which is the better option when you want the dashboard. See "Metrics and dashboards" below, and "Running more than one loader" for scaling out.
+
+### Running your own checkout in Docker
+
+The published images only contain what has been released, so any local change, or a fix that has not shipped yet, needs an image built from your working copy. Build it from the repository root:
+
+```bash
+docker build -t load-tester:local .
+```
+
+The build compiles TypeScript and installs production dependencies, so it takes a few minutes the first time and is fast afterwards. It builds for the machine you are on, so on an Apple Silicon Mac you get a native arm64 image, roughly 150MB, and none of the emulation cost that comes with the published amd64 image. Do not pass `--platform` when building locally.
+
+Run it exactly like the published image, with the tag swapped:
+
+```bash
+docker run --rm -p 4000:4000 \
+  -e HOST_URL=http://host.docker.internal:3000 -e SSL_ENABLED=no \
+  -e DATABASE_URL='mongodb://host.docker.internal:27017/?directConnection=true' \
+  -e DATABASE_NAME=rocketchat \
+  -e TASK_ID=localdev -e HOW_MANY_USERS=10 -e USERS_PER_ROOM=10 -e LOGIN_BATCH=5 \
+  -e MESSAGE_SENDING_RATE=100 -e OPEN_ROOM_RATE=10 -e READ_MESSAGE_RATE=10 \
+  -e SET_STATUS_RATE=10 -e SUBSCRIBE_PRESENCE_RATE=100 \
+  load-tester:local
+```
+
+To confirm the image really contains your change, look for it in the compiled output rather than trusting the build log:
+
+```bash
+docker run --rm --entrypoint sh load-tester:local -c "grep -n 'users.presence' cjs/client/WebClient.js"
+```
+
+Rebuild after every source change. The image is a copy of your code at build time, and `docker run` on a stale tag silently runs the old version, which is easy to mistake for a fix that did not work.
+
+To use your local build with the Compose stack instead, `docker compose up -d --build` already builds from the checkout rather than pulling, so no tag change is needed.
+
+### Checking a run actually worked
+
+`Logged users total: N of M` now reports real successes, so N below M means part of the fleet is not logged in. The metrics remain the fuller picture, either from the mapped port or from the dashboard:
+
+```bash
+curl -s http://localhost:4000/metrics | grep -E '^rc_actions_count\{action="(login|beforeLogin)"'
+curl -s http://localhost:4000/metrics | grep '^rc_load_connected'
+```
+
+A healthy run shows `login` and `beforeLogin` success counts equal to `HOW_MANY_USERS`, no matching `status="error"` lines, and `rc_load_connected` equal to the same number.
+
+Two shortfalls to tell apart. A low `login` success count means those users are not logged in at all and are generating nothing, though the tester retries them as they are picked, so the number should climb. A low `beforeLogin` success count with a full `login` count means the users are logged in but skipped the handshake, so they generate less stream load than a real client; the startup warning reports how many.
+
 
 ## Metrics and dashboards
 

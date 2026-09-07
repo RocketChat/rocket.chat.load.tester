@@ -22,7 +22,15 @@ export class WebClient extends Client {
 		// await subscribeNotifyAll();
 		await Promise.all(['public-settings-changed'].map((event) => this.subscribe('stream-notify-all', event, false)));
 
-		prom.connected.inc();
+		// beforeLogin is @suppressError, so login() cannot see a failure here. Record the outcome
+		// instead: a client that skipped this handshake still logs in, but generates less stream load.
+		// The flag also keeps the gauge idempotent, because a retried login runs beforeLogin again and
+		// would otherwise increment a second time for the same client.
+		if (!this.handshakeComplete) {
+			this.handshakeComplete = true;
+
+			prom.connected.inc();
+		}
 	}
 
 	@suppressError
@@ -36,73 +44,86 @@ export class WebClient extends Client {
 			throw new Error('Already logging in');
 		}
 
-		// TODO if an error happens, we should rollback the status to not-logged
 		this.status = 'logging';
 
-		const { credentials } = this;
+		try {
+			const { credentials } = this;
 
-		await this.beforeLogin();
+			await this.beforeLogin();
 
-		const user = await this.client.login(credentials);
+			const user = await this.client.login(credentials);
 
-		// await this.subscribeLoggedNotify();
-		await Promise.all(
-			[
-				'deleteCustomSound',
-				'updateCustomSound',
-				'updateEmojiCustom',
-				'deleteEmojiCustom',
-				'deleteCustomUserStatus',
-				'updateCustomUserStatus',
-				'banner-changed',
-				'updateAvatar',
-				'Users:NameChanged',
-				'Users:Deleted',
-				'roles-change',
-				'voip.statuschanged',
-				'permissions-changed',
-			].map((event) => this.subscribe('stream-notify-logged', event, false)),
-		);
+			// await this.subscribeLoggedNotify();
+			await Promise.all(
+				[
+					'deleteCustomSound',
+					'updateCustomSound',
+					'updateEmojiCustom',
+					'deleteEmojiCustom',
+					'deleteCustomUserStatus',
+					'updateCustomUserStatus',
+					'banner-changed',
+					'updateAvatar',
+					'Users:NameChanged',
+					'Users:Deleted',
+					'roles-change',
+					'voip.statuschanged',
+					'permissions-changed',
+				].map((event) => this.subscribe('stream-notify-logged', event, false)),
+			);
 
-		// await subscribeNotifyUser();
-		await Promise.all(
-			[
-				'uiInteraction',
-				'video-conference',
-				'force_logout',
-				'message',
-				'subscriptions-changed',
-				'notification',
-				'otr',
-				'rooms-changed',
-				'webrtc',
-				'userData',
-			].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
-		);
+			// await subscribeNotifyUser();
+			await Promise.all(
+				[
+					'uiInteraction',
+					'video-conference',
+					'force_logout',
+					'message',
+					'subscriptions-changed',
+					'notification',
+					'otr',
+					'rooms-changed',
+					'webrtc',
+					'userData',
+				].map((event) => this.subscribe('stream-notify-user', `${user.id}/${event}`, false)),
+			);
 
-		await Promise.all(
-			[
-				'app/added',
-				'app/removed',
-				'app/updated',
-				'app/settingUpdated',
-				'command/added',
-				'command/disabled',
-				'command/updated',
-				'command/removed',
-				'actions/changed',
-			].map((event) => this.subscribe('stream-apps', event, false)),
-		);
+			await Promise.all(
+				[
+					'app/added',
+					'app/removed',
+					'app/updated',
+					'app/settingUpdated',
+					'command/added',
+					'command/disabled',
+					'command/updated',
+					'command/removed',
+					'actions/changed',
+				].map((event) => this.subscribe('stream-apps', event, false)),
+			);
 
-		await this.get('roles.list');
+			await this.get('roles.list');
 
-		await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
+			await Promise.all(this.getLoginMethods().map((params) => this.methodViaRest(...params)));
 
-		const subscriptions = await this.methodViaRest('subscriptions/get', {});
+			const subscriptions = await this.methodViaRest('subscriptions/get', {});
 
-		this.subscriptions = subscriptions as unknown as Subscription[];
+			this.subscriptions = subscriptions as unknown as Subscription[];
 
-		this.status = 'logged';
+			this.status = 'logged';
+		} catch (error) {
+			// A failed attempt must not leave the client parked in 'logging': getLoggedInClient skips
+			// that status, so this user would generate no load for the rest of the run. Rolling back to
+			// 'not-logged' makes it eligible for a lazy retry the next time it is picked. 'error' means
+			// the DDP socket dropped (see Client.ts), so only undo what this call set.
+			if (this.status === 'logging') {
+				this.status = 'not-logged';
+			}
+
+			// rethrown so @action still records rc_actions{action="login",status="error"}
+			// before @suppressError swallows it
+			throw error;
+		}
 	}
 
 	@suppressError
