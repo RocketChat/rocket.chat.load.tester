@@ -35,7 +35,7 @@ export class OmnichannelClient extends Client {
 
 		const end = prom.actions.startTimer({ action: 'getAgentDepartments' });
 		try {
-			const departments = await this.get(`livechat/agents/${this.client.userId}/departments?enabledDepartmentsOnly=true`);
+			const departments = await this.get(`livechat/agents/${this.client.userId}/departments`, { enabledDepartmentsOnly: 'true' });
 
 			end({ status: 'success' });
 			return departments;

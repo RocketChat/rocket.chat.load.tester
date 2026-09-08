@@ -91,3 +91,14 @@ export const config = {
 
 	DYNAMIC_LOGIN: ['true', 'yes'].includes(DYNAMIC_LOGIN),
 };
+
+console.log(`Rate settings are events per user per DAY. Computed totals for HOW_MANY_USERS=${config.HOW_MANY_USERS}:`);
+for (const [name, perUserPerDay, perSecond] of [
+	['MESSAGE_SENDING_RATE', MESSAGE_SENDING_RATE, config.MESSAGES_PER_SECOND],
+	['SET_STATUS_RATE', SET_STATUS_RATE, config.SET_STATUS_PER_SECOND],
+	['OPEN_ROOM_RATE', OPEN_ROOM_RATE, config.OPEN_ROOM_PER_SECOND],
+	['READ_MESSAGE_RATE', READ_MESSAGE_RATE, config.READ_MESSAGE_PER_SECOND],
+	['SUBSCRIBE_PRESENCE_RATE', SUBSCRIBE_PRESENCE_RATE, config.SUBSCRIBE_PRESENCE_PER_SECOND],
+] as const) {
+	console.log(`  ${name}=${perUserPerDay} per user per day equals ${perSecond.toFixed(6)} events per second in total`);
+}

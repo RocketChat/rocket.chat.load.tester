@@ -170,8 +170,8 @@ export default (): void => {
 		suppressError(async () => {
 			const client = await getLoggedInClient();
 
-			// change half the subscriptions to presence
-			const newSubs = Math.min(Math.round(client.getManyPresences() / 2), 1);
+			// change half the subscriptions to presence, at least one
+			const newSubs = Math.max(Math.round(client.getManyPresences() / 2), 1);
 
 			const newIds = [];
 

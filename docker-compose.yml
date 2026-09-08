@@ -17,7 +17,12 @@ services:
       - SSL_ENABLED=${SSL_ENABLED:-yes}
       - DATABASE_URL=${DATABASE_URL}
       - DATABASE_NAME=${DATABASE_NAME}
-      - TASK_ID=1
+      - TASK_ID=${TASK_ID:-1}
+      - MESSAGE_SENDING_RATE=${MESSAGE_SENDING_RATE:-100}
+      - SET_STATUS_RATE=${SET_STATUS_RATE:-10}
+      - OPEN_ROOM_RATE=${OPEN_ROOM_RATE:-10}
+      - READ_MESSAGE_RATE=${READ_MESSAGE_RATE:-10}
+      - SUBSCRIBE_PRESENCE_RATE=${SUBSCRIBE_PRESENCE_RATE:-100}
 
   prometheus:
     image: prom/prometheus:v2.28.0
@@ -30,7 +35,7 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
-      - 9090:9090
+      - ${PROMETHEUS_PORT:-9090}:9090
     restart: unless-stopped
 
   grafana:
@@ -38,11 +43,13 @@ services:
     depends_on:
       - prometheus
     ports:
-      - 3300:3000
+      - ${GRAFANA_PORT:-3300}:3000
     volumes:
       - grafana_data:/var/lib/grafana
-      # - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=foobar
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=${GRAFANA_ANONYMOUS:-false}
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     restart: unless-stopped
