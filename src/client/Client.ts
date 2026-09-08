@@ -123,6 +123,10 @@ export class Client implements ClientLoadTest {
 
 	status: 'logged' | 'not-logged' | 'logging' | 'error' = 'not-logged';
 
+	// true once beforeLogin finished every step. A client can log in with this false, because
+	// beforeLogin suppresses its own errors; such a client generates less stream load than a real one.
+	handshakeComplete = false;
+
 	get: IAPIRequest;
 
 	post: IAPIRequest;
