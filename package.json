@@ -34,6 +34,7 @@
     "start": "ts-node ./src/index.ts"
   },
   "devDependencies": {
+    "@babel/preset-typescript": "^7.22.5",
     "@rocket.chat/eslint-config": "^0.5.2",
     "@types/ejson": "^2.2.0",
     "@types/jest": "^29.5.2",
@@ -63,11 +64,13 @@
     "@rocket.chat/emitter": "^0.31",
     "@rocket.chat/sdk": "next",
     "@supercharge/promise-pool": "^2.4.0",
+    "@swc/jest": "^0.2.26",
     "@types/debug": "^4.1.8",
     "@types/node": "^20.3.1",
     "debug": "^4.3.4",
     "ejson": "^2.2.3",
     "form-data": "^4.0.0",
+    "jest-environment-jsdom": "^29.5.0",
     "koa": "^2.14.2",
     "koa-better-error-handler": "^11.0.4",
     "koa-bodyparser": "^4.4.1",

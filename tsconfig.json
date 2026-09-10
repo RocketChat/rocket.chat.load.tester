@@ -14,10 +14,9 @@
 		"forceConsistentCasingInFileNames": true,
 		"moduleResolution": "node",
 		"resolveJsonModule": true,
-		"typeRoots": ["./types"],
 		"downlevelIteration": true
 	},
-	"include": ["./src/**/*"],
+	"include": ["./src/**/*", "./tests/**/*.ts"],
 	"files": ["./src/index.ts", "./types/index.d.ts"],
 	"ts-node": {
 		"files": true,

@@ -9,7 +9,12 @@ export class OmnichannelClient extends Client {
 		const subscriptions = this.subscriptions.filter(
 			(sub) => config.IGNORE_ROOMS.indexOf(sub.rid) === -1 && config.IGNORE_ROOMS.indexOf(sub.name) === -1 && sub.t === 'l',
 		);
-		return rand(subscriptions);
+		const subscription = rand(subscriptions);
+
+		if (!subscription) {
+			throw new Error('no subscriptions');
+		}
+		return subscription;
 	}
 
 	async getRoutingConfig(): Promise<{ [k: string]: string } | undefined> {
